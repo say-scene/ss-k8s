@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Deployment, Service 등은 클러스터 베이스 작업 후 추가한다.
+resources: []
+
+# newTag는 ss_be의 ecr-push workflow가 main push마다 짧은 SHA로 갱신한다.
+images:
+  - name: ss_be
+    newName: 944296702922.dkr.ecr.ap-northeast-2.amazonaws.com/ss_be
+    newTag: 6d33334
