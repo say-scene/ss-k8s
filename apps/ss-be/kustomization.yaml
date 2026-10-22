@@ -8,4 +8,4 @@ resources: []
 images:
   - name: ss_be
     newName: 944296702922.dkr.ecr.ap-northeast-2.amazonaws.com/ss_be
-    newTag: 366bff4
+    newTag: 83a4288
