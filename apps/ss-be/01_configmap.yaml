@@ -15,3 +15,8 @@ data:
   # TODO: STT 서빙 주소가 정해지면 바꾼다.
   STT_BASE_URL: "http://ss-stt:8001"
   STT_TIMEOUT_SECONDS: "120"
+  # 같은 네임스페이스의 Redis Service로 연결한다.
+  REDIS_HOST: "ss-redis"
+  REDIS_PORT: "6379"
+  CONVERSATION_TTL_SECONDS: "86400"
+  SESSION_COOKIE_SECURE: "true"

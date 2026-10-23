@@ -8,9 +8,10 @@ sortOptions:
 # 02_secret.yaml은 커밋하지 않는다. 02_secret.example.yaml을 복사해서 값을 채운다.
 resources:
   - 01_configmap.yaml
-  - 02_secret.example.yaml
-  - 03_deployment.yaml
-  - 04_service.yaml
+  - 02_secret.yaml
+  - 03_redis.yaml
+  - 04_deployment.yaml
+  - 05_service.yaml
 
 # newTag는 ss-be의 ecr-push workflow가 main push마다 짧은 SHA로 갱신한다.
 images:
