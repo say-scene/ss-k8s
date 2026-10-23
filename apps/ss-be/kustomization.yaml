@@ -1,7 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# resources에 적은 순서대로 출력한다. kind 기준 정렬로 바꾸려면 order를 legacy로 둔다.
+# resources에 적은 순서대로 출력한다. 파일 번호/출력 순서는 기동 완료 순서를 보장하지 않는다.
+# BE의 Redis 의존성은 readiness probe로 확인한다.
 sortOptions:
   order: fifo
 
