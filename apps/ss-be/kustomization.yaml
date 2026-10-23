@@ -8,7 +8,7 @@ sortOptions:
 # 02_secret.yaml은 커밋하지 않는다. 02_secret.example.yaml을 복사해서 값을 채운다.
 resources:
   - 01_configmap.yaml
-  - 02_secret.yaml
+  - 02_secret.example.yaml
   - 03_deployment.yaml
   - 04_service.yaml
 
