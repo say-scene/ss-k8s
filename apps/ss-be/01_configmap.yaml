@@ -18,5 +18,8 @@ data:
   # 같은 네임스페이스의 Redis Service로 연결한다.
   REDIS_HOST: "ss-redis"
   REDIS_PORT: "6379"
+  # Redis 연결이 끊기면 BE를 트래픽 대상에서 제외하고, 복구되면 다시 포함한다.
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+  MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: "readinessState,redis"
   CONVERSATION_TTL_SECONDS: "86400"
   SESSION_COOKIE_SECURE: "true"

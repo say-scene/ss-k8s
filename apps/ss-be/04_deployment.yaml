@@ -14,6 +14,36 @@ spec:
       labels:
         app: ss-be
     spec:
+      # ConfigMap/Secret이 준비되고 Redis가 PONG을 반환해야 BE를 시작한다.
+      initContainers:
+        - name: wait-for-redis
+          image: redis:7.4-alpine
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ss-be-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ss-be-config
+                  key: REDIS_PORT
+          command:
+            - sh
+            - -c
+            - |
+              until [ "$(timeout 3 redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping)" = "PONG" ]; do
+                echo "Redis 연결 대기 중..."
+                sleep 2
+              done
+              echo "Redis 연결 확인 완료"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
       containers:
         - name: ss-be
           # kustomization.yaml의 images가 ECR 주소와 태그로 바꾼다. 이름을 바꾸면 매칭이 끊긴다.
@@ -26,7 +56,8 @@ spec:
                 name: ss-be-config
             - secretRef:
                 name: ss-be-secret
-          # Spring Boot는 Kubernetes 위에서 liveness/readiness health group을 자동으로 켠다.
+          # 시작/생존 검사는 JVM 상태만 확인한다. Redis 장애로 BE를 재시작하지 않는다.
+          # Redis 의존성은 ConfigMap의 readiness health group에서 검사한다.
           startupProbe:
             httpGet:
               path: /actuator/health/liveness
@@ -41,6 +72,11 @@ spec:
             httpGet:
               path: /actuator/health/readiness
               port: http
+            # Redis 연결/명령 timeout(각 2초)보다 여유 있게 검사한다.
+            timeoutSeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
           # ponytail: 실측 전 추정값. 부하를 보고 조정한다.
           resources:
             requests:
