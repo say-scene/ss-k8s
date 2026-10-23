@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ss-be
+  labels:
+    app: ss-be
+spec:
+  selector:
+    app: ss-be
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

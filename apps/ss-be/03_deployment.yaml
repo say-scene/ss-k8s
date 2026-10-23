@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ss-be
+  labels:
+    app: ss-be
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ss-be
+  template:
+    metadata:
+      labels:
+        app: ss-be
+    spec:
+      containers:
+        - name: ss-be
+          # kustomization.yaml의 images가 ECR 주소와 태그로 바꾼다. 이름을 바꾸면 매칭이 끊긴다.
+          image: ss-be
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: ss-be-config
+            - secretRef:
+                name: ss-be-secret
+          # Spring Boot는 Kubernetes 위에서 liveness/readiness health group을 자동으로 켠다.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+          # ponytail: 실측 전 추정값. 부하를 보고 조정한다.
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
