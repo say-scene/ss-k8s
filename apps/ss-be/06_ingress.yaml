@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ss-be
+  labels:
+    app: ss-be
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # init/argocd-ingress.yaml과 같은 ALB를 공유한다. order는 group 안에서 겹치지 않게 한다.
+    alb.ingress.kubernetes.io/group.name: sayscene-public
+    alb.ingress.kubernetes.io/group.order: "20"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    # CloudFront origin-facing IP만 허용한다. ALB 주소로 직접 들어오는 요청은 막는다.
+    alb.ingress.kubernetes.io/security-group-prefix-lists: pl-22a6434b
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    # target-type ip라서 pod에 직접 검사한다. Redis 장애 시 503으로 target에서 빠진다.
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    alb.ingress.kubernetes.io/success-codes: "200"
+spec:
+  ingressClassName: alb
+  # /actuator는 노출하지 않는다. 매칭되지 않는 경로는 ALB 기본 404 → CloudFront 에러 정책이 처리한다.
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: ss-be
+                port:
+                  name: http

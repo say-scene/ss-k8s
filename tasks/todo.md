@@ -15,7 +15,7 @@
 
 ## Phase 2 — ss-be 노출
 
-- [ ] **T2. `apps/ss-be/06_ingress.yaml`을 ss-be Ingress로 작성한다** (T1 이후)
+- [x] **T2. `apps/ss-be/06_ingress.yaml`을 ss-be Ingress로 작성한다** (T1 이후)
   - 변경: `/api` Prefix → `ss-be:http`, `group.name: sayscene-public`, `group.order: "20"`, healthcheck `/actuator/health/readiness`
   - 수용 기준: kustomize 출력에 Ingress `ss-be`가 namespace 없이 포함된다
   - 검증: `kubectl kustomize apps/ss-be` / `kubectl apply --dry-run=server -k apps/ss-be -n <ss-be ns>`
