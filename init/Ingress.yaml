@@ -1,0 +1,56 @@
+# ArgoCD 웹 UI를 CloudFront 뒤에서 노출한다.
+# init/은 ArgoCD 동기화 대상이 아니다. ArgoCD가 자기 Ingress를 관리하는 순환을 피하려고
+# apps/와 형제 경로에 두고 수동으로 apply한다.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # ss-be Ingress(apps/ss-be/06_ingress.yaml, order 20)와 ALB 하나를 공유한다.
+    # order는 group 안에서 겹치지 않게 한다. 작은 값이 먼저 평가된다.
+    alb.ingress.kubernetes.io/group.name: sayscene-public
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    # CloudFront origin-facing IP만 허용한다. ALB 주소로 직접 들어오는 요청은 막는다.
+    alb.ingress.kubernetes.io/security-group-prefix-lists: pl-22a6434b
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/backend-protocol-version: HTTP1
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    # TODO: argocd-server를 --rootpath /argocd로 띄워야 이 경로가 응답한다.
+    # 설정하지 않으면 404로 target이 전부 unhealthy가 된다.
+    alb.ingress.kubernetes.io/healthcheck-path: /argocd/healthz
+    alb.ingress.kubernetes.io/success-codes: "200"
+spec:
+  ingressClassName: alb
+  # TODO: 아래 defaultBackend는 현재 상태로 동작하지 않는다. 적용 전에 결정한다.
+  #
+  # port.name이 use-annotation이면 LBC는 serviceName과 같은 이름의
+  # alb.ingress.kubernetes.io/actions.deny annotation을 찾는다. 그 annotation이 없어서
+  # LBC가 reconcile하지 못한다. 선택지는 둘이다.
+  #
+  # (a) 이 4줄을 삭제한다. 매칭되지 않는 경로는 ALB 기본 404가 처리한다.
+  #     security-group-prefix-lists가 이미 소스 IP를 CloudFront로 제한하므로
+  #     경로 단위 403은 추가 방어가 되지 않는다. 06_ingress.yaml도 같은 방식이다.
+  #
+  # (b) actions.deny annotation을 추가해 fixed-response 403을 돌려준다.
+  #     단, IngressGroup 안에서 defaultBackend가 만드는 catch-all 규칙이
+  #     order 20의 /api를 가리는지는 공식 문서에 없다. 클러스터에서
+  #     kubectl describe ingress로 실제 규칙 우선순위를 확인해야 한다.
+  defaultBackend:
+    service:
+      name: deny
+      port:
+        name: use-annotation
+  rules:
+    - http:
+        paths:
+          - path: /argocd
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
