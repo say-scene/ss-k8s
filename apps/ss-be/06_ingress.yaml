@@ -7,7 +7,7 @@ metadata:
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    # init/argocd-ingress.yaml과 같은 ALB를 공유한다. order는 group 안에서 겹치지 않게 한다.
+    # ArgoCD Ingress(init/, 팀원 관리)와 같은 ALB를 공유한다. order는 group 안에서 겹치지 않게 한다.
     alb.ingress.kubernetes.io/group.name: sayscene-public
     alb.ingress.kubernetes.io/group.order: "20"
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
