@@ -1,0 +1,33 @@
+# 수정 후 ./render.sh 를 실행하고 karpenter.yaml 을 함께 커밋한다.
+# 결정 근거: ss-docs karpenter-general-nodepool-decision-v1.md
+replicas: 1
+hostNetwork: true
+dnsPolicy: ClusterFirstWithHostNet
+nodeSelector:
+  kubernetes.io/os: linux
+  node-role.kubernetes.io/control-plane: ""
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  - key: CriticalAddonsOnly
+    operator: Exists
+topologySpreadConstraints: []
+settings:
+  clusterName: sayscene
+  clusterEndpoint: https://10.0.4.232:6443
+  eksControlPlane: false
+  enableZonalShift: false
+  interruptionQueue: ""
+controller:
+  env:
+    - name: AWS_REGION
+      value: ap-northeast-2
+    - name: EKS_CONTROL_PLANE
+      value: "false"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
