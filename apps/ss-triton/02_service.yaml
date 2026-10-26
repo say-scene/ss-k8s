@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ss-triton
+  labels:
+    app: ss-triton
+spec:
+  type: ClusterIP
+  selector:
+    app: ss-triton
+  ports:
+    - name: openai
+      port: 9000
+      targetPort: openai
+    - name: infer
+      port: 8000
+      targetPort: infer
+    - name: metrics
+      port: 8002
+      targetPort: metrics
