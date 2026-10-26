@@ -1,11 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 # resources에 적은 순서대로 출력한다. 파일 번호/출력 순서는 기동 완료 순서를 보장하지 않는다.
 # BE의 Redis 의존성은 readiness probe로 확인한다.
 sortOptions:
   order: fifo
-
 # 02_secret.yaml은 커밋하지 않는다. 02_secret.example.yaml을 복사해서 값을 채운다.
 resources:
   - 01_configmap.yaml
@@ -13,7 +11,7 @@ resources:
   - 03_redis.yaml
   - 04_deployment.yaml
   - 05_service.yaml
-
+  - 06_ingress.yaml
 # newTag는 ss-be의 ecr-push workflow가 main push마다 짧은 SHA로 갱신한다.
 images:
   - name: ss-be

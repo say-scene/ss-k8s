@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ss-triton
+  labels:
+    app: ss-triton
+spec:
+  # 1차 초안: 이미지·가중치·GPU 준비 확인 후 1로 변경한다.
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ss-triton
+  template:
+    metadata:
+      labels:
+        app: ss-triton
+    spec:
+      # PRD의 L4 노드. 실제 NodePool 라벨·taint와 배포 전에 대조한다.
+      nodeSelector:
+        node.kubernetes.io/instance-type: g6.xlarge
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: ss-triton
+          image: ss-triton
+          ports:
+            - name: openai
+              containerPort: 9000
+            - name: infer
+              containerPort: 8000
+            - name: metrics
+              containerPort: 8002
+          env:
+            - name: WHISPER_MODEL_PATH
+              value: /opt/models/faster-whisper-large-v3-turbo
+            - name: HF_HUB_OFFLINE
+              value: "1"
+          volumeMounts:
+            - name: model-weights
+              mountPath: /opt/models
+              readOnly: true
+            - name: shared-memory
+              mountPath: /dev/shm
+          # 두 모델 모두 READY여야 시작 완료 및 트래픽 수신이 가능하다.
+          startupProbe:
+            exec:
+              command: [python3, /healthcheck.py]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            exec:
+              command: [python3, /healthcheck.py]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /v2/health/live
+              port: infer
+            periodSeconds: 10
+            timeoutSeconds: 3
+          # CPU·메모리·probe 대기 시간은 GPU 검증 전 임시값이다.
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+            limits:
+              memory: 12Gi
+              nvidia.com/gpu: "1"
+      volumes:
+        - name: model-weights
+          hostPath:
+            path: /opt/models
+            type: Directory
+        - name: shared-memory
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
