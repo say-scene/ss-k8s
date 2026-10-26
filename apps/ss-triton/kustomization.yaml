@@ -9,4 +9,4 @@ images:
   - name: ss-triton
     newName: 944296702922.dkr.ecr.ap-northeast-2.amazonaws.com/ss-triton
     # 첫 CI 성공 후 실제 SHA 7자리로 바꾼다. 아직 배포 가능한 태그가 아니다.
-    newTag: pending-ci-build
+    newTag: "f75c574"
