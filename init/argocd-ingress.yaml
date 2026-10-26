@@ -17,11 +17,6 @@ metadata:
     alb.ingress.kubernetes.io/success-codes: "200"
 spec:
   ingressClassName: alb
-  defaultBackend:
-    service:
-      name: deny
-      port:
-        name: use-annotation
   rules:
     - http:
         paths:

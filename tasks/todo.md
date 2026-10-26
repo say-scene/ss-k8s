@@ -4,7 +4,7 @@
 
 ## Phase 1 — ArgoCD Ingress 분리
 
-- [ ] **T1. ArgoCD Ingress를 ss-be 앱에서 뺀다** (ArgoCD Ingress는 팀원이 root `init/`에서 수동으로 관리)
+- [x] **T1. ArgoCD Ingress를 ss-be 앱에서 뺀다** (git 반영 완료, `init/argocd-ingress.yaml`. 클러스터 적용은 남음) (ArgoCD Ingress는 팀원이 root `init/`에서 수동으로 관리)
   - 사전 확인: `kubectl -n argocd get ingress argocd --show-labels`로 ss-be 앱의 tracking 표시가 있는지 본다. 있으면 sync 전에 떼거나 prune을 끈다
   - [x] ArgoCD Ingress에서 `defaultBackend`(deny)를 제거했다. 에러 응답은 CloudFront 에러 정책이 처리한다
   - 수용 기준: ArgoCD Ingress는 `init/`에서만 관리되고, `/argocd` 접속이 유지된다
