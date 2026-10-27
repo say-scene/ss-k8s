@@ -1,0 +1,16 @@
+# API 서버에 질의한다. 어느 노드에 떠 있든 클러스터 전체가 보이므로 1 개면 된다.
+# 기본 노드에 고정하는 이유는 수집 범위와 무관하다 — 확장 워커가 정리될 때
+# 함께 사라지는 것을 막으려는 것이다.
+kube-state-metrics:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 256Mi

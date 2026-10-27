@@ -1,0 +1,16 @@
+# 설치는 하되 수신처(Slack·이메일)는 비운다.
+# 경보는 Grafana 와 Alertmanager 화면에서 볼 수 있다.
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ""
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 256Mi

@@ -1,0 +1,15 @@
+# 차트 전역 토글. 특정 구성요소에 속하지 않는 값만 둔다.
+# 주의: 최상위 nodeSelector/tolerations 는 subchart 에 전파되지 않는다.
+#       고정 설정은 각 구성요소 파일에 따로 적는다.
+
+# kubeadm 단일 컨트롤 플레인에서는 아래 컴포넌트가 127.0.0.1 에만 바인딩되어
+# 수집에 실패한다. 켜두면 Target 이 계속 DOWN 이고 기본 알림이 발화한다.
+# 바인딩 주소를 바꿀 계획이 생기면 그때 켠다.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
