@@ -48,6 +48,12 @@ values 파일은 **하위 폴더에만** 둔다. Argo CD 는 `ref` 소스의 `pa
 - 저장소는 기본 노드의 `/var/lib/prometheus` 를 `storage.yaml` 의 local PV 로 노출하고,
   `storageSpec.volumeClaimTemplate` 이 그것을 쓴다. 전환 기준은 설치 문서 §5-0.
 - **PV 의 `nodeAffinity` 에 기본 노드 이름이 박혀 있다.** 노드를 교체하면 같이 고친다.
-- 디렉터리는 kubelet 이 만들고 소유권은 `fsGroup` 이 맞춘다 (local PV 는 적용 대상).
-  **노드에서 손으로 할 일은 없다.**
+- **설치 전에 기본 노드에서 한 번 실행해야 한다.** local PV 는 `hostPath` 와 달리
+  디렉터리를 자동으로 만들지 않는다. 없으면 `FailedMount: path does not exist` 로 멈춘다.
+
+  ```bash
+  sudo mkdir -p /var/lib/prometheus
+  ```
+
+  소유권은 `fsGroup` 이 맞추므로 `chown` 은 필요 없다 (local PV 는 적용 대상).
 - Grafana 외부 노출은 보류. 1 단계는 `port-forward` 로 확인한다.

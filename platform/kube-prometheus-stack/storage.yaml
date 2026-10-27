@@ -25,6 +25,8 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-prometheus
   local:
+    # 이 디렉터리는 미리 있어야 한다. local PV 는 hostPath 와 달리 만들어주지 않는다.
+    #   sudo mkdir -p /var/lib/prometheus
     path: /var/lib/prometheus
   # 이 경로는 기본 노드에만 있다. 다른 노드에 스케줄되면 안 된다.
   nodeAffinity:
