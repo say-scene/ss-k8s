@@ -1,0 +1,41 @@
+# grafana/alloy 차트용. Argo CD에서 차트 버전을 고정한다.
+# resources.requests는 적용 보류. 차트 기본 요청량을 배포 전 렌더링으로 확인한다.
+# 1번 담당자와 확인: 관측 네임스페이스(Tempo와 같아야 아래 tempo:4317 사용),
+# Alloy 자체 메트릭 수집 여부 및 수집 시 Prometheus의 ServiceMonitor 라벨·네임스페이스 선택 조건.
+# 아래 Tempo Service 주소는 배포 시 실제 release 이름·네임스페이스에 맞춰 변경한다.
+# BE가 사용할 Alloy OTLP Service 주소도 설치 후 확인해 BE Deployment에 반영한다.
+alloy:
+  extraPorts:
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+  configMap:
+    content: |
+      otelcol.receiver.otlp "be" {
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "tempo:4317"
+          tls {
+            insecure = true
+          }
+        }
+      }
+
+controller:
+  type: deployment
+  replicas: 1
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule

@@ -1,0 +1,30 @@
+# grafana-community/tempo 차트용. Argo CD에서 차트 버전을 고정한다.
+# 짧은 시연: 로컬 저장이며 Pod 재생성 시 trace가 사라질 수 있다.
+# 1번 담당자와 확인: 관측 네임스페이스와 Grafana Tempo 데이터소스 주소
+# (release 이름 tempo 기준 http://tempo.<관측-네임스페이스>.svc.cluster.local:3200).
+# Grafana 데이터소스 Service 주소와 Alloy가 쓰는 Tempo 수신 주소는 배포 후 확인해 변경한다.
+# resources.requests는 적용 보류. 차트 기본 요청량을 배포 전 렌더링으로 확인한다.
+# Tempo 자체 메트릭을 수집한다면 Prometheus의 ServiceMonitor 라벨·네임스페이스 선택 조건도 맞춘다.
+tempo:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+
+persistence:
+  enabled: false
+
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ""
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
