@@ -10,4 +10,4 @@ images:
     newName: 944296702922.dkr.ecr.ap-northeast-2.amazonaws.com/ss-triton
     # ss-triton CI(update-tag)가 main push마다 갱신한다. 이 줄 구조를 바꾸면 CI가 실패한다.
     # f75c574는 Triton GPU 이미지다. STT 교체 후 첫 CI가 돌기 전에는 replicas를 올리지 않는다.
-    newTag: "f75c574"
+    newTag: "e47e872"
