@@ -8,13 +8,8 @@ spec:
   type: ClusterIP
   selector:
     app: ss-triton
+  # ss-be ConfigMap의 STT_BASE_URL(http://ss-triton:8001)과 맞춘다. /metrics도 같은 포트다.
   ports:
-    - name: openai
-      port: 9000
-      targetPort: openai
-    - name: infer
-      port: 8000
-      targetPort: infer
-    - name: metrics
-      port: 8002
-      targetPort: metrics
+    - name: http
+      port: 8001
+      targetPort: http
