@@ -9,6 +9,7 @@ Argo CD Application 정의는 깃에 없고 웹 콘솔에만 있다. 여기에 �
 | 차트 | `prometheus-community/kube-prometheus-stack` |
 | repoURL | `https://prometheus-community.github.io/helm-charts` |
 | targetRevision | `92.13.1` |
+| values 소스 | `https://github.com/say-scene/ss-k8s.git` · `main` · `path: platform/kube-prometheus-stack` · `ref: values` |
 | Destination namespace | `monitoring` (Auto-create 켬) |
 | Sync | 수동 · **Server-Side Apply** |
 | Prune · Force | 끔 |
