@@ -1,0 +1,39 @@
+# Prometheus 저장소. 기본 노드의 /var/lib/prometheus 를 local PV 로 노출한다.
+# Operator 는 spec.volumes 로 저장소를 바꾸지 못하고 storageSpec 만 받는다.
+# 그래서 hostPath 를 쓰려면 PV 를 거쳐야 한다.
+#
+# values 파일은 하위 폴더에 있어 매니페스트로 읽히지 않는다. 이 파일만 적용된다.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-prometheus
+provisioner: kubernetes.io/no-provisioner
+# 파드가 스케줄된 뒤에 바인딩한다. 노드가 정해져야 local 볼륨을 고를 수 있다.
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheus-local
+spec:
+  capacity:
+    # retentionSize 2GiB 에 WAL 여유를 더한 값. 루트 디스크 여유 7.3G 안에서 잡는다.
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  # 지워도 디렉터리를 남긴다. 재설치 때 지표가 이어진다.
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-prometheus
+  local:
+    # 이 디렉터리는 미리 있어야 한다. local PV 는 hostPath 와 달리 만들어주지 않는다.
+    #   sudo mkdir -p /var/lib/prometheus
+    path: /var/lib/prometheus
+  # 이 경로는 기본 노드에만 있다. 다른 노드에 스케줄되면 안 된다.
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - ip-10-0-4-232.ap-northeast-2.compute.internal

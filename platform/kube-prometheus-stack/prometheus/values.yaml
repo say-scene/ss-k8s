@@ -1,0 +1,90 @@
+# 저장소는 기본 노드 루트 디스크(16G 중 7.3G 여유)를 쓴다.
+# retention 과 retentionSize 를 함께 걸고, 디스크 알림으로 포화를 막는다.
+# 전환 기준은 ss-docs 가 아니라 test/kube-prometheus-stack-설치.md §5-0 참고.
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    # TSDB 블록 기준이라 정확한 상한이 아니다. WAL 이 일시적으로 더 쓴다.
+    # 설치 후 루트 디스크 여유가 4.6G 로 줄어 2GiB -> 1GiB 로 낮췄다.
+    # 85% 디스크 알림이 상시 발화하지 않도록 하는 값이다.
+    # 전용 볼륨으로 옮기면 7d 를 채울 만큼 올린다.
+    retentionSize: 1GiB
+
+    # false 로 두어야 ③ 담당이 만든 ServiceMonitor 도 수집된다.
+    # true(기본값)면 이 차트의 release 라벨이 붙은 것만 본다.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ""
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      # cpu limits 는 걸지 않는다. 상한은 쓰로틀링을 일으켜 쿼리를 느리게 만든다.
+      limits:
+        memory: 3Gi
+
+    # 저장소는 storageSpec 으로만 바꿀 수 있다.
+    # spec.volumes 로 같은 이름을 선언하면 덮어쓰기가 아니라 중복이 되어 거부된다.
+    #   spec.template.spec.volumes[8].name: Duplicate value
+    # 다른 이름으로 volumeMounts 를 더해도 mountPath 중복으로 거부된다.
+    #   containers[0].volumeMounts[3].mountPath: "/prometheus": must be unique
+    # hostPath 를 쓰려면 local PersistentVolume 을 거쳐야 한다 (storage.yaml).
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-prometheus
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+
+  additionalServiceMonitors:
+    - name: ss-be
+      namespaceSelector:
+        matchNames:
+          - sayscene
+      selector:
+        matchLabels:
+          app: ss-be
+      endpoints:
+        # Service port name 이 http 이고 Actuator 가 같은 포트에 있다.
+        # 앱에 micrometer-registry-prometheus 가 들어가기 전까지 DOWN 이 정상이다.
+        - port: http
+          path: /actuator/prometheus
+    # ss-triton 은 Service 가 아직 없다. 생기면 주석을 푼다.
+    # - name: ss-triton
+    #   namespaceSelector:
+    #     matchNames:
+    #       - sayscene
+    #   selector:
+    #     matchLabels:
+    #       app: ss-triton
+    #   endpoints:
+    #     - port: metrics
+
+# 루트 디스크를 쓰므로 포화를 먼저 알린다.
+# 이 규칙이 디스크가 차서 노드 전체가 위험해지는 시나리오를 막는다.
+additionalPrometheusRulesMap:
+  node-disk:
+    groups:
+      - name: node-disk
+        rules:
+          - alert: NodeDiskFillingUp
+            expr: >-
+              100 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} * 100) > 85
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "기본 노드 루트 디스크 85% 초과"
+              description: "Prometheus 보존을 줄이거나 전용 볼륨으로 옮긴다."

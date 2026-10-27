@@ -1,0 +1,13 @@
+# DaemonSet 이라 모든 노드에 하나씩 뜬다. 고정하지 않는다.
+# 할 일은 "보내라"가 아니라 "막지 마라" 뿐이다.
+prometheus-node-exporter:
+  # 기본 노드의 control-plane taint 와 llm 풀의 sayscene.io/workload taint 를
+  # 모두 견딘다. 없으면 taint 없는 노드에만 떠서 기본 노드가 보이지 않는다.
+  tolerations:
+    - operator: Exists
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi

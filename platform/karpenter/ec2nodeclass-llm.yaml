@@ -1,0 +1,127 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: llm
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  amiFamily: Custom
+  amiSelectorTerms:
+    - id: ami-019b11c51aea1b31d
+  instanceProfile: SaySceneWorkerRole
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: sayscene
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: sayscene
+  associatePublicIPAddress: true
+  metadataOptions:
+    httpEndpoint: enabled
+    httpTokens: required
+    httpPutResponseHopLimit: 1
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 60Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+  kubelet:
+    maxPods: 30
+    systemReserved:
+      cpu: 100m
+      memory: 256Mi
+    kubeReserved:
+      cpu: 200m
+      memory: 256Mi
+  userData: |
+    #!/bin/bash
+    set -euo pipefail
+    umask 077
+
+    CLUSTER_NAME="sayscene"
+    EXPECTED_REGION="ap-northeast-2"
+    MAX_PODS="30"
+    KARPENTER_MANAGED=true
+
+    [[ "$CLUSTER_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]
+    [[ "$EXPECTED_REGION" =~ ^[a-z0-9-]+$ ]]
+    [[ "$MAX_PODS" =~ ^[1-9][0-9]*$ ]]
+
+    if [[ -s /etc/kubernetes/kubelet.conf ]]; then
+      echo "이미 가입한 노드입니다. 자동 재가입을 생략합니다."
+      exit 0
+    fi
+
+    IMDS_TOKEN="$(curl -fsS --retry 5 --connect-timeout 3 --max-time 15 \
+      -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 3600' \
+      http://169.254.169.254/latest/api/token)"
+
+    metadata() {
+      curl -fsS --retry 5 --connect-timeout 3 --max-time 15 \
+        -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+        "http://169.254.169.254/latest/meta-data/$1"
+    }
+
+    AWS_REGION="$(metadata placement/region)"
+    NODE_IP="$(metadata local-ipv4)"
+    NODE_NAME="$(metadata local-hostname)"
+    INSTANCE_ID="$(metadata instance-id)"
+    AZ="$(metadata placement/availability-zone)"
+    test "$AWS_REGION" = "$EXPECTED_REGION"
+
+    ssm_value() {
+      aws ssm get-parameter --region "$AWS_REGION" \
+        --name "$1" --with-decryption --query Parameter.Value --output text
+    }
+    API_ENDPOINT="$(ssm_value "/${CLUSTER_NAME}/kubeadm/endpoint")"
+    JOIN_TOKEN="$(ssm_value "/${CLUSTER_NAME}/kubeadm/token")"
+    CA_HASH="$(ssm_value "/${CLUSTER_NAME}/kubeadm/ca-hash")"
+
+    [[ "$JOIN_TOKEN" =~ ^[a-z0-9]{6}\.[a-z0-9]{16}$ ]]
+    [[ "$CA_HASH" =~ ^sha256:[0-9a-f]{64}$ ]]
+    [[ "$API_ENDPOINT" != *$'\n'* ]]
+
+    JOIN_FILE=/run/sayscene-kubeadm-join.yaml
+    trap 'rm -f "$JOIN_FILE"' EXIT
+
+    cat > "$JOIN_FILE" <<JOIN
+    apiVersion: kubeadm.k8s.io/v1beta4
+    kind: JoinConfiguration
+    discovery:
+      bootstrapToken:
+        apiServerEndpoint: "${API_ENDPOINT}"
+        token: "${JOIN_TOKEN}"
+        caCertHashes:
+          - "${CA_HASH}"
+    nodeRegistration:
+      name: "${NODE_NAME}"
+      criSocket: unix:///run/containerd/containerd.sock
+    JOIN
+
+    if [[ "$KARPENTER_MANAGED" == true ]]; then
+      cat >> "$JOIN_FILE" <<'TAINTS'
+      taints:
+        - key: karpenter.sh/unregistered
+          effect: NoExecute
+    TAINTS
+    else
+      printf '  taints: []\n' >> "$JOIN_FILE"
+    fi
+
+    cat >> "$JOIN_FILE" <<JOIN
+      kubeletExtraArgs:
+        - name: cloud-provider
+          value: external
+        - name: provider-id
+          value: "aws:///${AZ}/${INSTANCE_ID}"
+        - name: node-ip
+          value: "${NODE_IP}"
+        - name: max-pods
+          value: "${MAX_PODS}"
+    JOIN
+
+    systemctl start containerd
+    kubeadm join --config "$JOIN_FILE"
+    unset JOIN_TOKEN

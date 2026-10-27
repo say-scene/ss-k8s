@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm
+  labels:
+    app: llm
+spec:
+  # 1차 초안: 1로 바꾸면 Karpenter가 m7i.2xlarge 노드를 띄운다(과금 시작).
+  replicas: 0
+  # llm NodePool은 노드 최대 1대라 RollingUpdate의 새 파드가 올라갈 자리가 없다.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: llm
+  template:
+    metadata:
+      labels:
+        app: llm
+    spec:
+      # platform/karpenter/nodepool-llm.yaml의 라벨·taint와 맞춘다.
+      nodeSelector:
+        sayscene.io/workload: llm
+      tolerations:
+        - key: sayscene.io/workload
+          operator: Equal
+          value: llm
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          # llm AMI(sayscene-worker-llm-v1)에 미리 받아 둔 이미지. 태그를 바꾸면 노드에서 다시 받는다.
+          image: vllm/vllm-openai-cpu:v0.32.0-x86_64
+          imagePullPolicy: IfNotPresent
+          args:
+            - /opt/models/Qwen3-4B-Instruct-2507
+            - --served-model-name=qwen3-4b
+            - --dtype=bfloat16
+            # 기본 컨텍스트(262k)는 KV cache 8GiB에 들어가지 않아 기동에 실패한다.
+            # ss-be 리포트 요청이 max_tokens 4096을 보내므로 프롬프트 몫까지 8192로 둔다.
+            - --max-model-len=8192
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: VLLM_CPU_KVCACHE_SPACE
+              value: "8"
+            - name: HF_HUB_OFFLINE
+              value: "1"
+          # vLLM CPU 문서가 --privileged 대신 권장하는 최소 권한(get_mempolicy 허용).
+          securityContext:
+            capabilities:
+              add: [SYS_NICE]
+            seccompProfile:
+              type: Unconfined
+          volumeMounts:
+            - name: model-weights
+              mountPath: /opt/models
+              readOnly: true
+            - name: shared-memory
+              mountPath: /dev/shm
+          # 새 노드는 EBS lazy loading으로 첫 가중치 읽기가 느릴 수 있어 최대 15분 기다린다.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # ponytail: 실측 전 추정값. 가중치 8 + KV 8 + 런타임·shm 여유. CPU limit은 throttling 방지로 두지 않는다.
+          resources:
+            requests:
+              cpu: "6"
+              memory: 24Gi
+            limits:
+              memory: 28Gi
+      volumes:
+        - name: model-weights
+          hostPath:
+            path: /opt/models
+            type: Directory
+        - name: shared-memory
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi

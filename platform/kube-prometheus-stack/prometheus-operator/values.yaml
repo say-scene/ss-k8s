@@ -1,0 +1,15 @@
+# CRD 를 관리하고 ServiceMonitor 를 Prometheus 설정에 반영한다.
+# 고정하지 않으면 확장 워커로 갈 수 있고, 그 워커가 정리되면 반영이 멈춘다.
+prometheusOperator:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi

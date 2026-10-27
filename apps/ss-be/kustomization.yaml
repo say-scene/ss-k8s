@@ -17,4 +17,4 @@ resources:
 images:
   - name: ss-be
     newName: 944296702922.dkr.ecr.ap-northeast-2.amazonaws.com/ss-be
-    newTag: 731b301
+    newTag: 72847af
