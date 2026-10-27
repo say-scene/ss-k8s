@@ -12,6 +12,7 @@ resources:
   - 04_deployment.yaml
   - 05_service.yaml
   - 06_ingress.yaml
+  - 07_servicemonitor.yaml
 # newTag는 ss-be의 ecr-push workflow가 main push마다 짧은 SHA로 갱신한다.
 images:
   - name: ss-be

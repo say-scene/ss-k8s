@@ -1,0 +1,71 @@
+# grafana-community/loki 차트용. Helm 검증 버전: 20.0.2. Argo CD에서도 같은 버전으로 고정한다.
+# Argo CD 설정: helm.releaseName=loki, 임시 destination.namespace=observability.
+# 네임스페이스는 1번 담당자와 추후 조율한다.
+# CPU EC2에 연결된 sayscenecontrolplanerole의 임시 자격 증명을 사용한다.
+# IAM 인라인 정책: ss-loki-s3-access. Pod의 IMDS 접근과 S3 읽기·쓰기는 배포 후 검증한다.
+# Secret/접근 키를 이 파일에 넣지 않는다.
+# Loki gateway 주소는 설치 후 실제 release 이름·네임스페이스에 맞춰
+# platform/alloy/logs/values.yaml과 Grafana 데이터소스에서 확인·변경한다.
+# resources.requests와 보관 기간은 적용 보류. 차트 기본 요청량도 배포 전 확인한다.
+# 기존 Tempo처럼 CPU control-plane 노드에 배치한다. 실제 노드 라벨·taint는 배포 전 확인한다.
+# 단일 Loki의 임시 작업 데이터(WAL 등)는 Pod 재생성 시 사라질 수 있다.
+
+deploymentMode: Monolithic
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  storage:
+    type: s3
+    bucketNames:
+      chunks: ss-loki-chunks-944296702922-ap-northeast-2-an
+      ruler: ss-loki-ruler-944296702922-ap-northeast-2-an
+    s3:
+      region: ap-northeast-2
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: false
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+gateway:
+  enabled: true
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+lokiCanary:
+  enabled: false
+# 차트의 Helm test는 Canary를 요구하므로 최소 시연 구성에서는 함께 끈다.
+test:
+  enabled: false
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0

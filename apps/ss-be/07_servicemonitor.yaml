@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ss-be
+  labels:
+    app: ss-be
+    # kube-prometheus-stack의 Helm release 이름이 다르면 팀 설정에 맞춰 바꾼다.
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: ss-be
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
