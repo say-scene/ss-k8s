@@ -5,7 +5,10 @@ prometheus:
   prometheusSpec:
     retention: 7d
     # TSDB 블록 기준이라 정확한 상한이 아니다. WAL 이 일시적으로 더 쓴다.
-    retentionSize: 2GiB
+    # 설치 후 루트 디스크 여유가 4.6G 로 줄어 2GiB -> 1GiB 로 낮췄다.
+    # 85% 디스크 알림이 상시 발화하지 않도록 하는 값이다.
+    # 전용 볼륨으로 옮기면 7d 를 채울 만큼 올린다.
+    retentionSize: 1GiB
 
     # false 로 두어야 ③ 담당이 만든 ServiceMonitor 도 수집된다.
     # true(기본값)면 이 차트의 release 라벨이 붙은 것만 본다.
