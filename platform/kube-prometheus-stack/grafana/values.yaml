@@ -1,0 +1,26 @@
+# 1 단계에서는 외부로 노출하지 않는다. port-forward 로 확인한다.
+# root_url / serve_from_sub_path 는 2 단계(외부 노출)에서 더한다.
+grafana:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+  # 켜두어야 ③ 담당이 Loki·Tempo 데이터소스를 자기 폴더의 ConfigMap 으로 붙일 수 있다.
+  # 꺼져 있으면 ③ 이 이 파일을 고쳐야 해서 담당 경계가 겹친다.
+  sidecar:
+    datasources:
+      enabled: true
+      label: grafana_datasource
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
