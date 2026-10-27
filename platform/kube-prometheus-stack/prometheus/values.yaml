@@ -60,16 +60,17 @@ prometheus:
         # 앱에 micrometer-registry-prometheus 가 들어가기 전까지 DOWN 이 정상이다.
         - port: http
           path: /actuator/prometheus
-    # ss-triton 은 Service 가 아직 없다. 생기면 주석을 푼다.
-    # - name: ss-triton
-    #   namespaceSelector:
-    #     matchNames:
-    #       - sayscene
-    #   selector:
-    #     matchLabels:
-    #       app: ss-triton
-    #   endpoints:
-    #     - port: metrics
+    # 이름은 ss-triton 이지만 CPU Whisper STT 다. /metrics 가 API 와 같은 포트에 있다.
+    - name: ss-triton
+      namespaceSelector:
+        matchNames:
+          - sayscene
+      selector:
+        matchLabels:
+          app: ss-triton
+      endpoints:
+        - port: http
+          path: /metrics
 
 # 루트 디스크를 쓰므로 포화를 먼저 알린다.
 # 이 규칙이 디스크가 차서 노드 전체가 위험해지는 시나리오를 막는다.

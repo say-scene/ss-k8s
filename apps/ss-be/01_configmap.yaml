@@ -12,8 +12,8 @@ data:
   INFERENCE_MODEL: "qwen3-4b"
   INFERENCE_MODE: "live"
   INFERENCE_TIMEOUT_SECONDS: "45"
-  # TODO: STT 서빙 주소가 정해지면 바꾼다.
-  STT_BASE_URL: "http://ss-stt:8001"
+  # apps/ss-triton(이름만 Triton, 내용은 CPU Whisper STT) Service.
+  STT_BASE_URL: "http://ss-triton:8001"
   STT_TIMEOUT_SECONDS: "120"
   # 같은 네임스페이스의 Redis Service로 연결한다.
   REDIS_HOST: "ss-redis"
