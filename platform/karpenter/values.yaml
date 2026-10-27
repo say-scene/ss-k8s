@@ -1,4 +1,3 @@
-# 수정 후 ./render.sh 를 실행하고 karpenter.yaml 을 함께 커밋한다.
 # 결정 근거: ss-docs karpenter-general-nodepool-decision-v1.md
 replicas: 1
 hostNetwork: true
