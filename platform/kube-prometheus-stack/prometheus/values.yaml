@@ -38,6 +38,21 @@ prometheus:
       - name: data
         mountPath: /prometheus
 
+    # kubelet 이 만드는 디렉터리는 root:root 이고, hostPath 는 fsGroup 대상이 아니다.
+    # Prometheus 는 비루트(1000:2000)로 돌아 쓰기에 실패한다 -> CrashLoopBackOff.
+    # 노드에서 손으로 chown 하지 않도록 기동 때마다 맞춘다.
+    initContainers:
+      - name: chown-data
+        image: busybox:1.37
+        command: ["sh", "-c", "chown -R 1000:2000 /prometheus"]
+        securityContext:
+          # 파드 securityContext 를 덮어 이 컨테이너만 root 로 실행한다.
+          runAsUser: 0
+          runAsNonRoot: false
+        volumeMounts:
+          - name: data
+            mountPath: /prometheus
+
   additionalServiceMonitors:
     - name: ss-be
       namespaceSelector:

@@ -43,6 +43,8 @@ $values/platform/kube-prometheus-stack/kube-state-metrics/values.yaml
 
 ## 전제
 
-- 기본 노드에 `/var/lib/prometheus` 디렉터리가 있어야 한다 (`hostPath`).
+- `/var/lib/prometheus` 는 kubelet 이 자동으로 만들고(`DirectoryOrCreate`),
+  소유권은 `chown-data` initContainer 가 맞춘다. **노드에서 손으로 할 일은 없다.**
 - 저장소는 루트 디스크를 쓴다. 전환 기준은 설치 문서 §5-0.
+- `busybox` 이미지를 Docker Hub 에서 받는다. 노드의 인터넷 경로가 필요하다.
 - Grafana 외부 노출은 보류. 1 단계는 `port-forward` 로 확인한다.
