@@ -39,13 +39,15 @@ $values/platform/kube-prometheus-stack/kube-state-metrics/values.yaml
 폴더명은 `values.yaml` 안의 최상위 키와 같다. 그래서 `node-exporter` 가 아니라
 `prometheus-node-exporter` 다. 폴더만 보면 안에 어떤 키가 있는지 알 수 있다.
 
-최상위에 `.yaml` 을 두지 않는다. Argo CD 는 `ref` 소스의 `path` 를 매니페스트로도
-렌더링하므로, values 파일이 최상위에 있으면 매니페스트로 읽힐 소지가 있다.
+values 파일은 **하위 폴더에만** 둔다. Argo CD 는 `ref` 소스의 `path` 를 매니페스트로도
+렌더링하는데 디렉터리 스캔은 비재귀라, 하위 폴더의 values 는 읽히지 않는다.
+최상위의 `storage.yaml` 은 반대로 **의도적으로 적용되는 매니페스트**다.
 
 ## 전제
 
-- `/var/lib/prometheus` 는 kubelet 이 자동으로 만들고(`DirectoryOrCreate`),
-  소유권은 `chown-data` initContainer 가 맞춘다. **노드에서 손으로 할 일은 없다.**
-- 저장소는 루트 디스크를 쓴다. 전환 기준은 설치 문서 §5-0.
-- `busybox` 이미지를 Docker Hub 에서 받는다. 노드의 인터넷 경로가 필요하다.
+- 저장소는 기본 노드의 `/var/lib/prometheus` 를 `storage.yaml` 의 local PV 로 노출하고,
+  `storageSpec.volumeClaimTemplate` 이 그것을 쓴다. 전환 기준은 설치 문서 §5-0.
+- **PV 의 `nodeAffinity` 에 기본 노드 이름이 박혀 있다.** 노드를 교체하면 같이 고친다.
+- 디렉터리는 kubelet 이 만들고 소유권은 `fsGroup` 이 맞춘다 (local PV 는 적용 대상).
+  **노드에서 손으로 할 일은 없다.**
 - Grafana 외부 노출은 보류. 1 단계는 `port-forward` 로 확인한다.
