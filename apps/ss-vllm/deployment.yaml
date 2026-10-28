@@ -1,0 +1,136 @@
+# Qwen3-4B-FP8 on the external WSL worker; CUDA-12 torchcodec compatibility pin.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-qwen
+  namespace: vllm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  progressDeadlineSeconds: 3600
+  selector:
+    matchLabels:
+      app: vllm-qwen
+  template:
+    metadata:
+      labels:
+        app: vllm-qwen
+    spec:
+      runtimeClassName: nvidia
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      nodeSelector:
+        sayscene.com/location: external
+        sayscene.com/accelerator: nvidia
+      tolerations:
+        - key: sayscene.com/gpu
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      initContainers:
+        - name: cuda12-torchcodec-compat
+          image: vllm/vllm-openai:v0.32.0-cu129
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - >-
+              uv pip install --no-deps --only-binary :all: --target /opt/vllm-compat --index-url https://download.pytorch.org/whl/cu129 'torchcodec==0.16.0+cu129'
+          env:
+            - name: UV_CACHE_DIR
+              value: /root/.cache/huggingface/uv
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: compat
+              mountPath: /opt/vllm-compat
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+      containers:
+        - name: server
+          image: vllm/vllm-openai:v0.32.0-cu129
+          imagePullPolicy: IfNotPresent
+          command: [vllm, serve]
+          args:
+            - Qwen/Qwen3-4B-FP8
+            - --revision
+            - 96b30dc13593a244a5e59e84687309f53c375cfa
+            - --served-model-name
+            - qwen3-local
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --dtype
+            - half
+            - --gpu-memory-utilization
+            - "0.80"
+            - --max-model-len
+            - "2048"
+            - --max-num-seqs
+            - "1"
+            - --max-num-batched-tokens
+            - "512"
+            - --enable-chunked-prefill
+            - --enforce-eager
+          env:
+            - name: PYTHONPATH
+              value: /opt/vllm-compat
+            - name: HF_HOME
+              value: /root/.cache/huggingface
+            - name: OMP_NUM_THREADS
+              value: "4"
+            - name: VLLM_NO_USAGE_STATS
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "2"
+              memory: 6Gi
+            limits:
+              cpu: "6"
+              memory: 12Gi
+              nvidia.com/gpu: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 180
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: compat
+              mountPath: /opt/vllm-compat
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: compat
+          emptyDir: {}
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: huggingface-cache
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi
