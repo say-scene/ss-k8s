@@ -1,0 +1,34 @@
+# User must first create this Linux path inside the WSL Ubuntu worker.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sayscene-gpu-hf-cache
+spec:
+  capacity:
+    storage: 30Gi
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /var/lib/sayscene-gpu/huggingface
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [sayscene-gpu-wsl]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: huggingface-cache
+  namespace: vllm
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: sayscene-gpu-hf-cache
+  resources:
+    requests:
+      storage: 30Gi
