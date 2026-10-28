@@ -56,6 +56,23 @@ spec:
                 name: ss-be-config
             - secretRef:
                 name: ss-be-secret
+          # Agent JAR가 포함된 BE 이미지와 함께 적용한다. JVM 시작 시 trace 전송을 활성화한다.
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/opt/otel/opentelemetry-javaagent.jar"
+            - name: OTEL_SERVICE_NAME
+              value: ss-be
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://alloy-otlp.monitoring.svc.cluster.local:4318
+            # 메트릭은 Prometheus, 로그는 로그 Alloy가 별도로 수집한다.
+            - name: OTEL_METRICS_EXPORTER
+              value: none
+            - name: OTEL_LOGS_EXPORTER
+              value: none
           # 시작/생존 검사는 JVM 상태만 확인한다. Redis 장애로 BE를 재시작하지 않는다.
           # Redis 의존성은 ConfigMap의 readiness health group에서 검사한다.
           startupProbe:
