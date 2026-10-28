@@ -1,7 +1,17 @@
-# 설치는 하되 수신처(Slack·이메일)는 비운다.
-# 경보는 Grafana 와 Alertmanager 화면에서 볼 수 있다.
+# 수신처는 Discord 로 연결한다. 라우팅 규칙만 깃에 두고 webhook URL 은 Secret 에서 읽는다.
+# ss-k8s 는 공개 저장소라 URL 을 커밋할 수 없다. URL 자체가 권한이다.
+#
+# 설치 전에 손으로 만들어야 한다. 없으면 파드가 마운트에 실패해 뜨지 않는다.
+#   kubectl -n monitoring create secret generic alertmanager-discord \
+#     --from-literal=url='<Discord webhook URL>'
+#
+# Alertmanager v0.34.1 기준. discord_configs 는 v0.25+, webhook_url_file 은 v0.26+ 이다.
 alertmanager:
   alertmanagerSpec:
+    # 위 Secret 을 /etc/alertmanager/secrets/alertmanager-discord/ 로 마운트한다.
+    secrets:
+      - alertmanager-discord
+
     nodeSelector:
       node-role.kubernetes.io/control-plane: ""
     tolerations:
@@ -14,3 +24,35 @@ alertmanager:
         memory: 64Mi
       limits:
         memory: 256Mi
+
+  config:
+    global:
+      resolve_timeout: 5m
+
+    route:
+      receiver: discord
+      group_by: [alertname, namespace]
+      # 몰린 알림을 묶어서 한 번에 보낸다.
+      group_wait: 30s
+      group_interval: 5m
+      # 해소되지 않은 알림을 다시 알리는 주기.
+      repeat_interval: 4h
+      routes:
+        # Watchdog 은 "알림 체계가 살아있다" 를 알리려고 항상 발화한다.
+        # 버리지 않으면 몇 분마다 울려서 진짜 알림이 묻힌다.
+        - receiver: "null"
+          matchers:
+            - alertname = "Watchdog"
+
+    receivers:
+      - name: "null"
+      - name: discord
+        discord_configs:
+          - webhook_url_file: /etc/alertmanager/secrets/alertmanager-discord/url
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+            message: >-
+              {{ range .Alerts }}**{{ .Labels.severity }}** · {{ .Labels.namespace }}
+              {{ .Annotations.summary }}
+              {{ .Annotations.description }}
+              {{ end }}
