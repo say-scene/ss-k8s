@@ -9,6 +9,23 @@
 # resources.requests는 적용 보류. 차트 기본 요청량을 배포 전 렌더링으로 확인한다.
 # Tempo 자체 메트릭을 수집한다면 Prometheus의 ServiceMonitor 라벨·네임스페이스 선택 조건도 맞춘다.
 tempo:
+  # TraceQL의 rate·평균·분위수 그래프 집계를 활성화한다.
+  metricsGenerator:
+    enabled: true
+    processor:
+      local_blocks:
+        filter_server_spans: false
+        # 집계용 블록도 기존 S3에 기록하여 과거 구간을 조회한다.
+        flush_to_storage: true
+    storage:
+      path: /var/tempo/generator/wal
+    traces_storage:
+      path: /var/tempo/generator/traces
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - local-blocks
   receivers:
     otlp:
       protocols:
