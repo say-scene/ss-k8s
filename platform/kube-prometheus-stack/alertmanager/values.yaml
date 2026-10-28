@@ -50,9 +50,20 @@ alertmanager:
         discord_configs:
           - webhook_url_file: /etc/alertmanager/secrets/alertmanager-discord/url
             send_resolved: true
-            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
-            message: >-
-              {{ range .Alerts }}**{{ .Labels.severity }}** · {{ .Labels.namespace }}
-              {{ .Annotations.summary }}
+            # message 는 |- 를 쓴다. >- 는 줄바꿈을 공백으로 접어 한 줄로 뭉친다.
+            # 노드 라벨 이름은 차트 relabeling 에 따라 달라서 3단 폴백을 둔다.
+            # instance 는 node-exporter 지표에 항상 붙으므로 최소한 IP 는 나온다.
+            title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}'
+            message: |-
+              {{ if .CommonLabels.severity }}**{{ .CommonLabels.severity | toUpper }}**{{ end }}{{ if .CommonLabels.namespace }} · `{{ .CommonLabels.namespace }}`{{ end }}
+              {{ if .CommonAnnotations.summary }}{{ .CommonAnnotations.summary }}{{ end }}
+              {{ range .Alerts.Firing }}
+              🔴 {{ if .Labels.kubernetes_node }}`{{ .Labels.kubernetes_node }}`{{ else if .Labels.node }}`{{ .Labels.node }}`{{ else if .Labels.instance }}`{{ .Labels.instance }}`{{ end }}{{ if .Labels.pod }} / `{{ .Labels.pod }}`{{ end }}
               {{ .Annotations.description }}
-              {{ end }}
+              {{- if .Annotations.runbook_url }}
+              → {{ .Annotations.runbook_url }}
+              {{- end }}
+              {{- end }}
+              {{ range .Alerts.Resolved }}
+              🟢 {{ if .Labels.kubernetes_node }}`{{ .Labels.kubernetes_node }}`{{ else if .Labels.node }}`{{ .Labels.node }}`{{ else if .Labels.instance }}`{{ .Labels.instance }}`{{ end }} 해소
+              {{- end }}
