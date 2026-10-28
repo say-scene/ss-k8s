@@ -1,10 +1,10 @@
 # grafana/alloy 차트용. Helm 검증 버전: 1.14.3. Argo CD에서도 같은 버전으로 고정한다.
-# Argo CD 설정: helm.releaseName=alloy-logs, 임시 destination.namespace=observability.
-# 네임스페이스는 1번 담당자와 추후 조율한다.
+# Argo CD 설정: helm.releaseName=alloy-logs, destination.namespace=monitoring.
+# 1번 담당자의 Grafana·Prometheus와 monitoring 네임스페이스를 공유한다.
+# 배포 네임스페이스는 values가 아닌 Argo CD Application의 destination에서 지정한다.
 # resources.requests는 적용 보류. 차트 기본 요청량을 배포 전 렌더링으로 확인한다.
 # Loki를 같은 네임스페이스에 release 이름 loki로 설치해 gateway Service를 만든다는 전제다.
-# 1번 담당자와 확인: 관측 네임스페이스와 Grafana Loki 데이터소스 주소
-# (gateway Service 기준 http://loki-gateway.<관측-네임스페이스>.svc.cluster.local:80).
+# 1번 담당자의 Grafana Loki 데이터소스 주소: http://loki-gateway.monitoring.svc.cluster.local:80.
 # 아래 Loki Service 주소는 배포 시 실제 release 이름·네임스페이스에 맞춰 변경한다.
 # Alloy 자체 메트릭 수집 여부 및 수집 시 Prometheus의 ServiceMonitor 라벨·네임스페이스 선택 조건도 맞춘다.
 alloy:
@@ -46,7 +46,7 @@ alloy:
 
       loki.write "cluster" {
         endpoint {
-          url = "http://loki-gateway:80/loki/api/v1/push"
+          url = "http://loki-gateway.monitoring.svc.cluster.local:80/loki/api/v1/push"
         }
       }
 

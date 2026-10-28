@@ -1,0 +1,21 @@
+# Git source: path=platform/tempo, directory.include=datasource.yaml, ref=values.
+# Helm values는 $values/platform/tempo/values.yaml로 별도 전달한다.
+# Argo CD destination.namespace=monitoring, Tempo helm.releaseName=tempo를 전제로 한다.
+# Grafana 조회는 HTTP 3200 포트이며, Alloy trace 전송용 OTLP 4317과 다르다.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-tempo
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  tempo.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.monitoring.svc.cluster.local:3200
+        isDefault: false

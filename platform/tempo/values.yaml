@@ -1,7 +1,10 @@
-# grafana-community/tempo 차트용. Argo CD에서 차트 버전을 고정한다.
-# 짧은 시연: 로컬 저장이며 Pod 재생성 시 trace가 사라질 수 있다.
-# 1번 담당자와 확인: 관측 네임스페이스와 Grafana Tempo 데이터소스 주소
-# (release 이름 tempo 기준 http://tempo.<관측-네임스페이스>.svc.cluster.local:3200).
+# grafana-community/tempo 차트용. 검증 버전 2.4.0 (Tempo 2.10.8); Argo CD에서도 고정한다.
+# Argo CD 설정: helm.releaseName=tempo, destination.namespace=monitoring.
+# 배포 네임스페이스는 values가 아닌 Argo CD Application의 destination에서 지정한다.
+# 1번 담당자의 Grafana 데이터소스 주소: http://tempo.monitoring.svc.cluster.local:3200.
+# trace 블록은 S3에 저장한다. EC2 역할 sayscenecontrolplanerole의 ss-tempo-s3-access 사용.
+# Pod의 IMDS·S3 접근은 배포 후 검증한다. 액세스 키를 이 파일에 넣지 않는다.
+# WAL·작업 파일은 로컬 임시 저장이므로 Pod 재생성 시 미전송 데이터는 유실될 수 있다.
 # Grafana 데이터소스 Service 주소와 Alloy가 쓰는 Tempo 수신 주소는 배포 후 확인해 변경한다.
 # resources.requests는 적용 보류. 차트 기본 요청량을 배포 전 렌더링으로 확인한다.
 # Tempo 자체 메트릭을 수집한다면 Prometheus의 ServiceMonitor 라벨·네임스페이스 선택 조건도 맞춘다.
@@ -13,9 +16,13 @@ tempo:
           endpoint: 0.0.0.0:4317
   storage:
     trace:
-      backend: local
-      local:
-        path: /var/tempo/traces
+      backend: s3
+      local: null
+      s3:
+        bucket: ss-tempo-traces-944296702922-ap-northeast-2-an
+        endpoint: s3.ap-northeast-2.amazonaws.com
+        region: ap-northeast-2
+        insecure: false
       wal:
         path: /var/tempo/wal
 
