@@ -5,10 +5,8 @@ metadata:
   labels:
     app: ss-triton
 spec:
-  # 1차 초안: 이미지·가중치·GPU 준비 확인 후 1로 변경한다.
+  # 이름은 ss-triton이지만 CPU Whisper STT다(ss-triton README). 첫 STT 이미지 태그 갱신 후 1로 바꾼다.
   replicas: 0
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: ss-triton
@@ -17,68 +15,64 @@ spec:
       labels:
         app: ss-triton
     spec:
-      # PRD의 L4 노드. 실제 NodePool 라벨·taint와 배포 전에 대조한다.
+      # 별도 노드 없이 control plane(t3.xlarge)에 둔다. CPU limit으로 etcd·apiserver 몫을 지킨다.
       nodeSelector:
-        node.kubernetes.io/instance-type: g6.xlarge
+        node-role.kubernetes.io/control-plane: ""
       tolerations:
-        - key: nvidia.com/gpu
+        - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
-      terminationGracePeriodSeconds: 60
       containers:
-        - name: ss-triton
+        - name: whisper
+          # kustomization.yaml의 images가 ECR 주소와 태그로 바꾼다. 이름을 바꾸면 CI 태그 갱신이 끊긴다.
           image: ss-triton
           ports:
-            - name: openai
-              containerPort: 9000
-            - name: infer
-              containerPort: 8000
-            - name: metrics
-              containerPort: 8002
+            - name: http
+              containerPort: 8001
           env:
-            - name: WHISPER_MODEL_PATH
-              value: /opt/models/faster-whisper-large-v3-turbo
-            - name: HF_HUB_OFFLINE
+            # 모델 비교 시 이 값만 바꾼다(예: large-v3-turbo). 스레드 수는 CPU limit과 맞춘다.
+            - name: WHISPER_MODEL
+              value: small.en
+            - name: WHISPER_CPU_THREADS
+              value: "2"
+            # 동시 계산 수. CPU limit 2에서는 1이 처리량이 같고 지연이 짧다. 노드를 키우면 올린다.
+            - name: STT_CONCURRENCY
               value: "1"
+            # 슬롯을 기다리는 최대 시간. 넘으면 503 STT_BUSY. BE timeout(120초)보다 짧게 둔다.
+            - name: STT_QUEUE_TIMEOUT
+              value: "10"
           volumeMounts:
-            - name: model-weights
-              mountPath: /opt/models
-              readOnly: true
-            - name: shared-memory
-              mountPath: /dev/shm
-          # 두 모델 모두 READY여야 시작 완료 및 트래픽 수신이 가능하다.
+            - name: model-cache
+              mountPath: /cache
+          # 서버는 모델 로드가 끝난 뒤 포트를 연다. 모델 다운로드 시간을 기다린다.
           startupProbe:
-            exec:
-              command: [python3, /healthcheck.py]
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 120
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
           readinessProbe:
-            exec:
-              command: [python3, /healthcheck.py]
+            httpGet:
+              path: /health
+              port: http
             periodSeconds: 10
-            timeoutSeconds: 5
           livenessProbe:
             httpGet:
-              path: /v2/health/live
-              port: infer
+              path: /health
+              port: http
             periodSeconds: 10
-            timeoutSeconds: 3
-          # CPU·메모리·probe 대기 시간은 GPU 검증 전 임시값이다.
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # ponytail: 실측 전 추정값. memory limit은 large-v3-turbo 비교까지 고려한다.
           resources:
             requests:
-              cpu: "2"
-              memory: 8Gi
-              nvidia.com/gpu: "1"
+              cpu: "1"
+              memory: 1Gi
             limits:
-              memory: 12Gi
-              nvidia.com/gpu: "1"
+              cpu: "2"
+              memory: 3Gi
       volumes:
-        - name: model-weights
-          hostPath:
-            path: /opt/models
-            type: Directory
-        - name: shared-memory
+        # Pod 재시작 시 모델을 다시 받는다. small.en은 수백 MB라 감수한다.
+        - name: model-cache
           emptyDir:
-            medium: Memory
-            sizeLimit: 1Gi
+            sizeLimit: 4Gi
