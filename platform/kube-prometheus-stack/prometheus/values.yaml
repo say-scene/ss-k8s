@@ -47,19 +47,10 @@ prometheus:
             requests:
               storage: 5Gi
 
+  # ss-be 는 여기에 두지 않는다. apps/ss-be/07_servicemonitor.yaml 이 소유한다.
+  # 앱의 포트 이름·경로가 바뀔 때 앱 폴더 안에서 끝나야 하므로 수집 측에 두지 않는다.
+  # 위의 serviceMonitorSelectorNilUsesHelmValues: false 가 그쪽을 수집해 준다.
   additionalServiceMonitors:
-    - name: ss-be
-      namespaceSelector:
-        matchNames:
-          - sayscene
-      selector:
-        matchLabels:
-          app: ss-be
-      endpoints:
-        # Service port name 이 http 이고 Actuator 가 같은 포트에 있다.
-        # 앱에 micrometer-registry-prometheus 가 들어가기 전까지 DOWN 이 정상이다.
-        - port: http
-          path: /actuator/prometheus
     # 이름은 ss-triton 이지만 CPU Whisper STT 다. /metrics 가 API 와 같은 포트에 있다.
     - name: ss-triton
       namespaceSelector:
