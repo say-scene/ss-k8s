@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kube-prometheus-stack-grafana
+  namesapce: monitoring
+  labels:
+    app.kubernetes.io/instance: kube-prometheus-stack
+    app.kubernetes.io/name: grafana
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # ArgoCD Ingress(init/, 팀원 관리)와 같은 ALB를 공유한다. order는 group 안에서 겹치지 않게 한다.
+    alb.ingress.kubernetes.io/group.name: sayscene-public
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    # CloudFront origin-facing IP만 허용한다. ALB 주소로 직접 들어오는 요청은 막는다.
+    alb.ingress.kubernetes.io/security-group-prefix-lists: pl-22a6434b
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    # target-type ip라서 pod에 직접 검사한다.
+    alb.ingress.kubernetes.io/healthcheck-path: /grafana/healthz
+    alb.ingress.kubernetes.io/success-codes: "200"
+spec:
+  ingressClassName: alb
+  # 매칭되지 않는 경로는 ALB 기본 404 → CloudFront 에러 정책이 처리한다.
+  rules:
+    - http:
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-grafana
+                port:
+                  name: http-web
