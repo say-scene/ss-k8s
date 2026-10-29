@@ -1,0 +1,32 @@
+# GPU 메트릭 수집기. node-exporter 와 같은 자리지만 별개 차트다.
+# node-exporter 는 CPU·메모리·디스크만 본다. GPU 는 전혀 모른다.
+#
+# 차트: dcgm-exporter 4.8.4
+# 레포: https://nvidia.github.io/dcgm-exporter/helm-charts
+# 네임스페이스: monitoring (Prometheus·Grafana 와 공유)
+#
+# WSL2 는 NVIDIA 공식 지원 플랫폼이 아니다. 문서는 Linux 만 지원으로 명시한다.
+# 기본 지표(DCGM_FI_DEV_GPU_UTIL · FB_USED)는 나올 가능성이 높지만
+# 전력·온도·DCGM_FI_PROF_* 는 안 나올 수 있다.
+# 설치 후 /metrics 에 실제로 무엇이 나오는지 확인한다.
+
+# GPU 노드에만 띄운다. CPU 노드에 뜨면 드라이버가 없어 바로 죽는다.
+# 라벨은 kubectl get nodes --show-labels 로 확인했다 (sayscene-gpu-wsl).
+nodeSelector:
+  sayscene.com/accelerator: nvidia
+
+# 차트 기본값은 control-plane taint 라 GPU 노드에 안 뜬다. 반드시 덮는다.
+# value 는 따옴표가 필요하다. 없으면 YAML 이 불리언으로 읽어 거부당한다.
+tolerations:
+  - key: sayscene.com/gpu
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+
+# ss-vllm 과 같은 런타임을 쓴다. kubectl get runtimeclass 로 존재를 확인했다.
+runtimeClassName: nvidia
+
+# serviceMonitor.enabled 는 차트 기본이 true 라 적지 않는다.
+# Prometheus 의 serviceMonitorSelectorNilUsesHelmValues: false 가 주워간다.
+# resources 도 차트가 이미 선언한다 (requests 100m/128Mi, limits 200m/512Mi).
+# 메트릭 목록 ConfigMap 도 차트가 만든다. 손으로 만들 것은 없다.
