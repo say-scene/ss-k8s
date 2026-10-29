@@ -1,0 +1,34 @@
+# KEDA Argo CD Application. Argo CD가 동기화하지 않는다. control plane에서 직접 적용한다.
+#   kubectl create namespace keda   # CreateNamespace=true가 동작하지 않아 먼저 만든다(원인 미확인)
+#   kubectl apply -f application.yaml
+# 적용 후 웹 콘솔에서 수동 SYNC한다. 절차는 ss-docs/manual/keda-install-v1.md.
+# 이 폴더를 path로 지정하는 Application을 만들지 않는다. 이 파일과 values.yaml이 매니페스트로 적용된다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keda
+  # 빠뜨리면 생성에 실패한다.
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # 클러스터 Kubernetes v1.35. KEDA 2.21은 v1.34~v1.36을 지원한다.
+    - repoURL: https://kedacore.github.io/charts
+      chart: keda
+      targetRevision: 2.21.0
+      helm:
+        releaseName: keda
+        valueFiles:
+          - $values/platform/keda/values.yaml
+    # values만 가져온다. path를 넣으면 values.yaml을 매니페스트로 적용하려다 실패한다.
+    - repoURL: https://github.com/say-scene/ss-k8s.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keda
+  # automated가 없으니 수동 sync다. CRD가 커서 Server-Side Apply가 필요하다.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
