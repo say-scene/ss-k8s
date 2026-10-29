@@ -1,6 +1,5 @@
-# kedacore/keda 차트용. Helm 검증 버전: 2.21.0(KEDA 2.21, Kubernetes v1.34~v1.36 지원). Argo CD에서도 같은 버전으로 고정한다.
-# Argo CD 설정: repoURL=https://kedacore.github.io/charts, chart=keda, helm.releaseName=keda,
-# destination.namespace=keda(Auto-create 켬), Sync는 수동·Server-Side Apply(CRD가 커서 annotation 한도에 걸린다).
+# kedacore/keda 차트용. 차트 버전과 Argo CD 설정은 같은 폴더의 application.yaml에 있다.
+# 설치·업그레이드·롤백 절차: ss-docs/manual/keda-install-v1.md.
 # external.metrics.k8s.io는 클러스터에 하나만 둘 수 있다. prometheus-adapter를 함께 설치하지 않는다.
 # 롤백: Application을 삭제한다. ScaledObject가 남아 있으면 먼저 지운다(대상 Deployment의 replicas는 마지막 값으로 남는다).
 
