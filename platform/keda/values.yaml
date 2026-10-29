@@ -1,0 +1,35 @@
+# kedacore/keda 차트용. Helm 검증 버전: 2.21.0(KEDA 2.21, Kubernetes v1.34~v1.36 지원). Argo CD에서도 같은 버전으로 고정한다.
+# Argo CD 설정: repoURL=https://kedacore.github.io/charts, chart=keda, helm.releaseName=keda,
+# destination.namespace=keda(Auto-create 켬), Sync는 수동·Server-Side Apply(CRD가 커서 annotation 한도에 걸린다).
+# external.metrics.k8s.io는 클러스터에 하나만 둘 수 있다. prometheus-adapter를 함께 설치하지 않는다.
+# 롤백: Application을 삭제한다. ScaledObject가 남아 있으면 먼저 지운다(대상 Deployment의 replicas는 마지막 값으로 남는다).
+
+# 다른 platform 구성요소처럼 control plane에 둔다. general은 노드 최대 1대이고 stt 노드는 taint로 막혀 있다.
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ""
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+# 기본 request(구성요소마다 100m·100Mi, 셋이면 300m)는 control plane에 크다. ScaledObject 몇 개 규모라 줄인다.
+# ponytail: 실측 전 추정값. 설치 후 Grafana에서 사용량을 보고 조정한다.
+resources:
+  operator:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  metricServer:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  webhooks:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
