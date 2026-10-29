@@ -6,10 +6,10 @@ metadata:
     app: ss-be
 # ss-be application.yml의 환경변수와 이름을 맞춘다. 민감 값(INFERENCE_API_KEY)은 02_secret.yaml에 둔다.
 data:
-  # apps/llm의 vLLM CPU Service. OpenAI 호환 /v1 앞까지 입력한다.
-  INFERENCE_BASE_URL: "http://llm:8000"
-  # apps/llm의 --served-model-name과 맞춘다.
-  INFERENCE_MODEL: "qwen3-4b"
+  # apps/ss-vllm의 vllm 네임스페이스 Service. OpenAI 호환 /v1 앞까지 입력한다.
+  INFERENCE_BASE_URL: "http://vllm-qwen.vllm.svc.cluster.local:8000"
+  # apps/ss-vllm의 --served-model-name과 맞춘다.
+  INFERENCE_MODEL: "qwen3-4b-fp8"
   INFERENCE_MODE: "live"
   INFERENCE_TIMEOUT_SECONDS: "45"
   # apps/ss-triton(이름만 Triton, 내용은 CPU Whisper STT) Service.

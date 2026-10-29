@@ -60,7 +60,7 @@ spec:
             - --revision
             - 96b30dc13593a244a5e59e84687309f53c375cfa
             - --served-model-name
-            - qwen3-local
+            - qwen3-4b-fp8
             - --host
             - 0.0.0.0
             - --port
