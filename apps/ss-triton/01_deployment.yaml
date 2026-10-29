@@ -5,9 +5,9 @@ metadata:
   labels:
     app: ss-triton
 spec:
-  # 이름은 ss-triton이지만 CPU Whisper STT다(ss-triton README).
+  # 이름은 ss-triton이지만 CPU Whisper STT다(ss-triton README). 노드 1대에 1개씩 뜬다.
   replicas: 1
-  # stt-bench NodePool은 노드 최대 1대라 RollingUpdate의 새 파드가 올라갈 자리가 없다.
+  # stt NodePool은 노드 최대 1대라 RollingUpdate의 새 파드가 올라갈 자리가 없다.
   strategy:
     type: Recreate
   selector:
@@ -18,7 +18,7 @@ spec:
       labels:
         app: ss-triton
     spec:
-      # 임시: A/B 측정 동안 platform/karpenter/nodepool-stt-bench.yaml의 전용 노드에 둔다.
+      # platform/karpenter/nodepool-stt.yaml의 전용 노드(t3.large)에 둔다. 라벨·taint를 맞춘다.
       nodeSelector:
         sayscene.io/workload: stt
       tolerations:
@@ -34,12 +34,14 @@ spec:
             - name: http
               containerPort: 8001
           env:
-            # 모델 비교 시 이 값만 바꾼다(예: large-v3-turbo). 스레드 수는 CPU limit과 맞춘다.
+            # 모델 비교 시 이 값만 바꾼다(예: large-v3-turbo).
             - name: WHISPER_MODEL
               value: small.en
+            # t3.large(물리 1코어) 실측: threads·concurrency를 (2,1)·(1,1)·(1,2)로 바꿔도
+            # 처리량은 약 0.16 rps로 같고 (1,2)는 p90만 나빠졌다. 가장 단순한 (1,1)로 둔다.
             - name: WHISPER_CPU_THREADS
-              value: "2"
-            # 동시 계산 수. CPU limit 2에서는 1이 처리량이 같고 지연이 짧다. 노드를 키우면 올린다.
+              value: "1"
+            # 동시 계산 수. 물리 코어 수보다 올려도 처리량이 늘지 않는다.
             - name: STT_CONCURRENCY
               value: "1"
             # 슬롯을 기다리는 최대 시간. 넘으면 503 STT_BUSY. BE timeout(120초)보다 짧게 둔다.
@@ -68,8 +70,8 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 6
           # request = limit(Guaranteed)로 측정 중 CPU 몫을 고정한다.
-          # CPU는 2 vCPU 노드 allocatable 1700m에서 DaemonSet 몫을 뺀 값이다. Pending이면 낮춘다.
-          # 메모리는 t3.large 측정 피크 1.19GiB(small.en, 동시 4건) 기준. c7i.large(4GiB)에 들어가게 2Gi로 둔다.
+          # CPU는 t3.large allocatable 1700m에서 DaemonSet 몫을 뺀 값이다. 노드당 STT 1개라 더 낮출 이유가 없다.
+          # 메모리는 t3.large 측정 피크 1.19GiB(small.en, 동시 4건) 기준.
           resources:
             requests:
               cpu: 1500m
