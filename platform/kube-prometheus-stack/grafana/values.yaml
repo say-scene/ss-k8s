@@ -28,3 +28,22 @@ grafana:
     dashboards:
       enabled: true
       label: grafana_dashboard
+
+  # 비밀번호는 공개 레포에 두지 않는다. Secret 이름만 적는다.
+  # userKey · passwordKey 는 차트 기본값(admin-user · admin-password)을 그대로 쓴다.
+  # Secret 은 ArgoCD 가 추적하지 않는다. 클러스터를 다시 만들면 Sync 전에 아래를 먼저 실행한다.
+  # read -rs 라서 화면·히스토리에 남지 않고, 표준입력이라 ps 에도 안 보인다.
+  #   read -rsp '비밀번호: ' PW && echo && kubectl apply -f - <<EOF
+  #   apiVersion: v1
+  #   kind: Secret
+  #   metadata:
+  #     name: grafana-admin
+  #     namespace: monitoring
+  #   type: Opaque
+  #   stringData:
+  #     admin-user: admin
+  #     admin-password: "$PW"
+  #   EOF
+  #   unset PW
+  admin:
+    existingSecret: grafana-admin
