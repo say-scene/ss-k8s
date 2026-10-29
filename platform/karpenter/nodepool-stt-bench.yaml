@@ -30,7 +30,8 @@ spec:
           values: ["linux"]
         - key: node.kubernetes.io/instance-type
           operator: In
-          values: ["t3.large"]
+          # t3.large(2 vCPU = 물리 1코어)는 스레드 조합과 무관하게 약 0.16 rps였다. 같은 1코어의 c7i.large와 비교한다.
+          values: ["c7i.large"]
         - key: karpenter.sh/capacity-type
           operator: In
           values: ["on-demand"]
