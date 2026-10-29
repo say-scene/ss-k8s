@@ -56,3 +56,10 @@ grafana:
     enabled: true
     storageClassName: local-prometheus
     size: 2Gi
+
+  # persistence 와 짝이다. 롤링이면 새 파드와 옛 파드가 잠깐 같은 grafana.db 를
+  # 동시에 연다. ReadWriteOnce 는 노드 단위라 같은 노드의 두 파드를 막지 못한다.
+  # SQLite 라 한 프로세스만 여는 편이 안전하다.
+  # 대가는 배포 중 수십 초 중단이다. 조회 도구라 받아들인다. 수집은 계속된다.
+  deploymentStrategy:
+    type: Recreate
