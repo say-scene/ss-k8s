@@ -1,6 +1,10 @@
-# 1 단계에서는 외부로 노출하지 않는다. port-forward 로 확인한다.
-# root_url / serve_from_sub_path 는 2 단계(외부 노출)에서 더한다.
 grafana:
+  # ALB가 /grafana 접두사를 유지하므로 Grafana가 subpath를 직접 처리한다.
+  grafana.ini:
+    server:
+      root_url: /grafana/
+      serve_from_sub_path: true
+
   nodeSelector:
     node-role.kubernetes.io/control-plane: ""
   tolerations:
