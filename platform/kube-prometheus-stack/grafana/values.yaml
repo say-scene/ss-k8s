@@ -57,9 +57,10 @@ grafana:
     storageClassName: local-prometheus
     size: 2Gi
 
-  # persistence 와 짝이다. 롤링이면 새 파드와 옛 파드가 잠깐 같은 grafana.db 를
-  # 동시에 연다. ReadWriteOnce 는 노드 단위라 같은 노드의 두 파드를 막지 못한다.
-  # SQLite 라 한 프로세스만 여는 편이 안전하다.
-  # 대가는 배포 중 수십 초 중단이다. 조회 도구라 받아들인다. 수집은 계속된다.
-  deploymentStrategy:
-    type: Recreate
+  # deploymentStrategy 는 건드리지 않는다. 차트 기본값 RollingUpdate 를 쓴다.
+  # Recreate 로 바꿔봤으나 적용되지 않았다. 살아 있는 Deployment 에
+  # strategy.rollingUpdate 가 남아 있어 type 만 바뀌면 쿠버네티스가 거부한다.
+  #   spec.strategy.rollingUpdate: Forbidden:
+  #   may not be specified when strategy `type` is 'Recreate'
+  # 넣으려면 그 필드를 먼저 지워야 하는데, 손으로 한 번 더 만지는 값어치가 없다.
+  # 롤링 중 두 파드가 같은 grafana.db 를 잠깐 동시에 여는 창은 남는다.
