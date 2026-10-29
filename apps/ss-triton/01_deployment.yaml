@@ -5,8 +5,11 @@ metadata:
   labels:
     app: ss-triton
 spec:
-  # 이름은 ss-triton이지만 CPU Whisper STT다(ss-triton README). 첫 STT 이미지 태그 갱신 후 1로 바꾼다.
-  replicas: 0
+  # 이름은 ss-triton이지만 CPU Whisper STT다(ss-triton README).
+  replicas: 1
+  # stt-bench NodePool은 노드 최대 1대라 RollingUpdate의 새 파드가 올라갈 자리가 없다.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: ss-triton
@@ -15,12 +18,13 @@ spec:
       labels:
         app: ss-triton
     spec:
-      # 별도 노드 없이 control plane(t3.xlarge)에 둔다. CPU limit으로 etcd·apiserver 몫을 지킨다.
+      # 임시: A/B 측정 동안 platform/karpenter/nodepool-stt-bench.yaml의 t3.large 전용 노드에 둔다.
       nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
+        sayscene.io/workload: stt
       tolerations:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
+        - key: sayscene.io/workload
+          operator: Equal
+          value: stt
           effect: NoSchedule
       containers:
         - name: whisper
@@ -63,13 +67,14 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
-          # ponytail: 실측 전 추정값. memory limit은 large-v3-turbo 비교까지 고려한다.
+          # request = limit(Guaranteed)로 측정 중 CPU 몫을 고정한다.
+          # t3.large allocatable 1700m에서 DaemonSet 몫을 뺀 값이다. Pending이면 낮춘다.
           resources:
             requests:
-              cpu: "1"
-              memory: 1Gi
+              cpu: 1500m
+              memory: 3Gi
             limits:
-              cpu: "2"
+              cpu: 1500m
               memory: 3Gi
       volumes:
         # Pod 재시작 시 모델을 다시 받는다. small.en은 수백 MB라 감수한다.
