@@ -1,0 +1,43 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: stt-bench
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  # 임시: ss-triton STT_CONCURRENCY·WHISPER_CPU_THREADS A/B 측정용. 끝나면 이 파일을 지운다(노드도 회수된다).
+  template:
+    metadata:
+      labels:
+        sayscene.io/workload: stt
+    spec:
+      # general과 같은 AMI·서브넷을 쓴다.
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: general
+      # ss-be 등 다른 파드가 섞이면 측정이 오염된다. toleration이 있는 ss-triton만 허용한다.
+      taints:
+        - key: sayscene.io/workload
+          value: stt
+          effect: NoSchedule
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["t3.large"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+  # 노드 최대 1대.
+  limits:
+    cpu: "2"
+    memory: 8Gi
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 1m
