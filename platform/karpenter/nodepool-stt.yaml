@@ -35,10 +35,10 @@ spec:
         - key: karpenter.sh/capacity-type
           operator: In
           values: ["on-demand"]
-  # 노드 최대 1대. KEDA로 replicas를 늘릴 때 함께 올린다.
+  # 노드 최대 2대 = ScaledObject maxReplicaCount 2(t3.large 1대당 cpu 2, 8Gi). KEDA 테스트용 상한이다.
   limits:
-    cpu: "2"
-    memory: 8Gi
+    cpu: "4"
+    memory: 16Gi
   disruption:
     consolidationPolicy: WhenEmpty
     consolidateAfter: 1m
