@@ -1,4 +1,5 @@
-# 저장소는 기본 노드 루트 디스크(16G 중 7.3G 여유)를 쓴다.
+# 저장소는 기본 노드 루트 디스크를 쓴다. 10-28 에 16G -> 60G 로 확장했다.
+# 여유 용량은 `df -h /` 로 확인한다. 공개 저장소라 값을 적지 않는다.
 # retention 과 retentionSize 를 함께 걸고, 디스크 알림으로 포화를 막는다.
 # 전환 기준은 ss-docs 가 아니라 test/kube-prometheus-stack-설치.md §5-0 참고.
 prometheus:
@@ -78,5 +79,5 @@ additionalPrometheusRulesMap:
             labels:
               severity: warning
             annotations:
-              summary: "기본 노드 루트 디스크 85% 초과"
-              description: "Prometheus 보존을 줄이거나 전용 볼륨으로 옮긴다."
+              summary: "노드 루트 디스크 85% 초과"
+              description: "{{ $labels.instance }} 의 루트 디스크가 85% 를 넘었다. 기본 노드면 Prometheus 보존을 줄이거나 전용 볼륨으로 옮긴다."
