@@ -6,10 +6,15 @@ metadata:
     app: ss-triton
 spec:
   # 이름은 ss-triton이지만 CPU Whisper STT다(ss-triton README). 노드 1대에 1개씩 뜬다.
-  replicas: 1
-  # stt NodePool은 노드 최대 1대라 RollingUpdate의 새 파드가 올라갈 자리가 없다.
+  # replicas는 03_scaledobject.yaml(KEDA)이 정한다. 여기에 적으면 sync마다 KEDA 값을 덮어쓴다.
+  # 이미지·env 변경 배포 방식(KEDA 증감과는 무관). stt NodePool은 최대 2대다.
+  # Pod 1개: 50% 내림 = 0이라 새 Pod를 2번째 노드에 먼저 띄운 뒤 기존 Pod를 내린다(끊김 없음).
+  # Pod 2개: 3번째 노드가 없으니 1개를 먼저 내리고 그 노드에 새 Pod를 띄운다(잠시 1개로 서비스).
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 50%
   selector:
     matchLabels:
       app: ss-triton

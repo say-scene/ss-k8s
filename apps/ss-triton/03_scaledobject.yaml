@@ -1,0 +1,41 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: ss-triton
+  labels:
+    app: ss-triton
+spec:
+  scaleTargetRef:
+    name: ss-triton
+  # 노드(t3.large) 1대에 1개씩 뜬다. 최대값을 바꾸면 platform/karpenter/nodepool-stt.yaml의 limits도 맞춘다.
+  # 지금은 KEDA 동작 테스트용으로 최대 2다.
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        # 새 노드 기동·모델 로드에 몇 분이 걸린다. 잠깐 한가해졌다고 바로 줄이지 않는다.
+        scaleDown:
+          stabilizationWindowSeconds: 300
+  # 여러 trigger 중 가장 많은 Pod 수를 요구하는 쪽을 따른다. 결과가 비면(요청 없음) 0으로 본다.
+  triggers:
+    # 주 기준: 서버 안의 평균 요청 수(처리 중 + 대기 중, 리틀의 법칙). Pod당 용량은 1.0(동시 처리 1건).
+    # Pod 수 = 올림(값 ÷ threshold). 사용자 1명 ≈ 0.175(2026-10-29 실측)라 Pod당 4명 남짓이다.
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+        query: |
+          sum(rate(stt_inference_seconds_sum{namespace="sayscene"}[2m]))
+          +
+          sum(rate(stt_queue_wait_seconds_sum{namespace="sayscene"}[2m]))
+        threshold: "0.8"
+    # 보조 기준: 503(STT_BUSY) 비율. 평균에 가려지는 순간 몰림을 잡는다. 5%를 넘으면 늘린다.
+    # 요청이 없을 때 0÷0(NaN)이 되지 않도록 분모를 > 0으로 거른다.
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+        query: |
+          sum(rate(stt_requests_total{namespace="sayscene", result="busy"}[2m]))
+          /
+          (sum(rate(stt_requests_total{namespace="sayscene"}[2m])) > 0)
+        threshold: "0.05"

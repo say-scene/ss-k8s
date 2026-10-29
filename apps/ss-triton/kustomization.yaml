@@ -5,6 +5,7 @@ sortOptions:
 resources:
   - 01_deployment.yaml
   - 02_service.yaml
+  - 03_scaledobject.yaml
 images:
   - name: ss-triton
     newName: 944296702922.dkr.ecr.ap-northeast-2.amazonaws.com/ss-triton
