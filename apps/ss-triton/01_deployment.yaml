@@ -18,7 +18,7 @@ spec:
       labels:
         app: ss-triton
     spec:
-      # 임시: A/B 측정 동안 platform/karpenter/nodepool-stt-bench.yaml의 t3.large 전용 노드에 둔다.
+      # 임시: A/B 측정 동안 platform/karpenter/nodepool-stt-bench.yaml의 전용 노드에 둔다.
       nodeSelector:
         sayscene.io/workload: stt
       tolerations:
@@ -68,14 +68,15 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 6
           # request = limit(Guaranteed)로 측정 중 CPU 몫을 고정한다.
-          # t3.large allocatable 1700m에서 DaemonSet 몫을 뺀 값이다. Pending이면 낮춘다.
+          # CPU는 2 vCPU 노드 allocatable 1700m에서 DaemonSet 몫을 뺀 값이다. Pending이면 낮춘다.
+          # 메모리는 t3.large 측정 피크 1.19GiB(small.en, 동시 4건) 기준. c7i.large(4GiB)에 들어가게 2Gi로 둔다.
           resources:
             requests:
               cpu: 1500m
-              memory: 3Gi
+              memory: 2Gi
             limits:
               cpu: 1500m
-              memory: 3Gi
+              memory: 2Gi
       volumes:
         # Pod 재시작 시 모델을 다시 받는다. small.en은 수백 MB라 감수한다.
         - name: model-cache
