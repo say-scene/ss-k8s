@@ -52,8 +52,12 @@ values 파일은 **하위 폴더에만** 둔다. Argo CD 는 `ref` 소스의 `pa
   디렉터리를 자동으로 만들지 않는다. 없으면 `FailedMount: path does not exist` 로 멈춘다.
 
   ```bash
-  sudo mkdir -p /var/lib/prometheus
+  sudo mkdir -p /var/lib/prometheus /var/lib/grafana
   ```
 
   소유권은 `fsGroup` 이 맞추므로 `chown` 은 필요 없다 (local PV 는 적용 대상).
+- Grafana 도 같은 방식으로 기본 노드의 `/var/lib/grafana` 를 쓴다 (`grafana-local`).
+  켜지 않으면 `grafana.db` 가 `emptyDir` 라 대시보드가 롤아웃마다 사라진다.
+- Grafana 관리자 비밀번호는 `grafana-admin` Secret 에 있다. 깃에는 이름만 둔다.
+  **Sync 전에 Secret 을 먼저 만들어야 한다.** 명령은 `grafana/values.yaml` 주석에 있다.
 - Grafana 외부 노출은 보류. 1 단계는 `port-forward` 로 확인한다.
