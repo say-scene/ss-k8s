@@ -7,7 +7,7 @@ metadata:
 spec:
   amiFamily: Custom
   amiSelectorTerms:
-    - id: ami-04e5c592ecea95a37
+    - id: ami-05506b4885dc6b8e9
   instanceProfile: SaySceneWorkerRole
   subnetSelectorTerms:
     - tags:
