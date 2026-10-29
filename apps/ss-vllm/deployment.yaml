@@ -70,9 +70,9 @@ spec:
             - --gpu-memory-utilization
             - "0.80"
             - --max-model-len
-            - "2048"
+            - "4096"
             - --max-num-seqs
-            - "1"
+            - "2"
             - --max-num-batched-tokens
             - "512"
             - --enable-chunked-prefill
