@@ -14,10 +14,10 @@ grafana:
 
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
+      cpu: 250ms
       memory: 512Mi
+    limits:
+      memory: 2Gi
 
   # 켜두어야 ③ 담당이 Loki·Tempo 데이터소스를 자기 폴더의 ConfigMap 으로 붙일 수 있다.
   # 꺼져 있으면 ③ 이 이 파일을 고쳐야 해서 담당 경계가 겹친다.
