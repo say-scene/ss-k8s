@@ -39,9 +39,10 @@ spec:
             - name: http
               containerPort: 8001
           env:
-            # 모델 비교 시 이 값만 바꾼다(예: large-v3-turbo).
+            # 이미지에 넣은 small.en 경로(ss-triton Dockerfile). 기동 시 다운로드하지 않는다.
+            # 모델 비교 시 이름(예: large-v3-turbo)으로 바꾸면 기존처럼 HF에서 받는다.
             - name: WHISPER_MODEL
-              value: small.en
+              value: /models/small.en
             # t3.large(물리 1코어) 실측: threads·concurrency를 (2,1)·(1,1)·(1,2)로 바꿔도
             # 처리량은 약 0.16 rps로 같고 (1,2)는 p90만 나빠졌다. 가장 단순한 (1,1)로 둔다.
             - name: WHISPER_CPU_THREADS
