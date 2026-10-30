@@ -29,6 +29,20 @@ alertmanager:
     global:
       resolve_timeout: 5m
 
+    # 알림을 받는 시간대. 평일 09:00 이상 19:00 미만 (한국 시간).
+    # end_time 은 포함하지 않는다. 19:00 정각에 발화하면 다음 평일 09:00 에 온다.
+    # 시간 조건은 라우팅이 아니라 알림 단계에서 걸린다. 그래서 버려지지 않고 보류된다.
+    # 밤에 발화해 아침까지 firing 이면 09:00 에 그때 도착한다.
+    # location 을 빼면 UTC 로 읽어 9시간 어긋난다.
+    time_intervals:
+      - name: business-hours
+        time_intervals:
+          - times:
+              - start_time: '09:00'
+                end_time: '19:00'
+            weekdays: ['monday:friday']
+            location: Asia/Seoul
+
     route:
       receiver: discord
       group_by: [alertname, namespace]
@@ -43,6 +57,12 @@ alertmanager:
         - receiver: "null"
           matchers:
             - alertname = "Watchdog"
+
+        # matchers 가 없어 Watchdog 을 뺀 나머지 전부가 이 경로로 온다.
+        # 그래서 위 route.receiver: discord 는 실제로 쓰이지 않는다.
+        # 시간 조건을 루트에 걸지 않는 이유: 자식 경로가 상속하는지 확인하지 못했다.
+        - receiver: discord
+          active_time_intervals: [business-hours]
 
     receivers:
       - name: "null"
