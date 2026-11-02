@@ -1,0 +1,24 @@
+# vLLM 부하테스트 Argo CD Application. control plane에서 직접 적용한다.
+#   kubectl apply -f application.yaml
+# 이 폴더는 kustomization.yaml 기준으로 렌더링되므로 이 파일과 run.sh·bench.py는 매니페스트로 적용되지 않는다.
+# CronJob이 suspend: true라 자동 동기화해도 테스트는 돌지 않는다. 실행은 run.sh로 한다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loadtest
+  # 빠뜨리면 생성에 실패한다.
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/say-scene/ss-k8s.git
+    targetRevision: main
+    path: apps/loadtest
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loadtest
+  # 스크립트·조건 변경을 커밋만으로 반영한다. run.sh로 만든 Job은 Git에 없지만 CronJob 소유라 prune 대상이 아니다.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
