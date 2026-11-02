@@ -3,7 +3,8 @@
 #   ./run.sh
 # 1. vLLM 롤아웃이 끝났고 파드가 1개인지 확인한다.
 # 2. 실행 중인 파드 인자에서 --max-num-seqs를 읽어 Job 이름과 환경변수에 넣는다.
-# 3. CronJob 틀에서 Job을 만들고 로그를 따라간다. 끊기면 kubectl -n loadtest logs -f job/<이름>으로 다시 붙는다.
+# 3. CronJob 틀에서 Job을 만들고 끝날 때까지 30초마다 진행 상황을 보여 준다.
+#    셸을 끊어도 Job은 계속 돈다. 전체 로그는 kubectl -n loadtest logs job/<이름>.
 # 결과: /opt/sayscene-loadtest/results/<Job 이름>/ (root 소유라 sudo로 읽는다)
 set -euo pipefail
 
@@ -41,9 +42,12 @@ kubectl -n "$NS" create job "$job" --from=cronjob/vllm-loadtest --dry-run=client
   | kubectl set env --local -f - "MAX_NUM_SEQS=$slots" -o yaml \
   | kubectl create -f -
 
-# 이미지 pull이 끝나야 로그를 볼 수 있다. 바로 실패한 경우에도 아래에서 상태를 확인한다.
-kubectl -n "$NS" wait --for=condition=Ready pod -l "batch.kubernetes.io/job-name=$job" --timeout=300s || true
-kubectl -n "$NS" logs -f "job/$job" || true
+# logs -f는 오래 붙어 있으면 출력이 끝날 때까지 몰려 나온 적이 있다. 30초마다 마지막 줄만 보고 끝나면 전체를 출력한다.
+until [ -n "$(kubectl -n "$NS" get job "$job" -o jsonpath='{.status.succeeded}{.status.failed}')" ]; do
+  echo "[$(date +%T)] $(kubectl -n "$NS" logs "job/$job" --tail=1 2>/dev/null || echo '파드 시작 대기')"
+  sleep 30
+done
+kubectl -n "$NS" logs "job/$job" || true
 
 # 파드가 끝난 직후에는 Job 상태가 아직 갱신되지 않았을 수 있다.
 if ! kubectl -n "$NS" wait --for=jsonpath='{.status.succeeded}'=1 "job/$job" --timeout=30s >/dev/null; then

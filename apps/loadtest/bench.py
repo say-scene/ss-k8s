@@ -173,7 +173,10 @@ def run_step(model, conc, rows):
             r = one_request(model, conc, f"{RUN}-c{conc}-{n}")
             with lock:
                 rows.append(r)
+                if len(rows) % 10 == 0:
+                    print(f"동시성 {conc}: {len(rows)}/{MIN_REQUESTS} 완료")
 
+    print(f"동시성 {conc} 시작")
     threads = [threading.Thread(target=worker) for _ in range(conc)]
     for t in threads:
         t.start()
@@ -204,9 +207,11 @@ def wait_idle():
     deadline = time.monotonic() + REQUEST_TIMEOUT
     while time.monotonic() < deadline:
         m = vllm_metrics()
-        if not (pick(m, GAUGES["running"]) or 0) + (pick(m, GAUGES["waiting"]) or 0):
+        busy = (pick(m, GAUGES["running"]) or 0) + (pick(m, GAUGES["waiting"]) or 0)
+        if not busy:
             break
-        time.sleep(1)
+        print(f"대기열 비우는 중: 실행·대기 {busy:g}건")
+        time.sleep(5)
     else:
         print("경고: vLLM 대기열이 비지 않았다. 다른 트래픽이 섞였을 수 있다.", file=sys.stderr)
     time.sleep(COOLDOWN_SECONDS)
@@ -235,7 +240,7 @@ def summarize(conc, rows, polls, before, after, start, end, res, r0, r1):
         "server_itl_mean_s": hist_mean(HISTS["itl"]),
         "server_e2e_mean_s": hist_mean(HISTS["e2e"]),
         # vLLM은 0~1 비율로 내보낸다.
-        "kv_usage_max": max(poll("kv_usage"), default=""),
+        "kv_usage_max": round(max(poll("kv_usage"), default=0), 4) if poll("kv_usage") else "",
         "preemptions_delta": p1 - p0 if p0 is not None and p1 is not None else "",
         **res,
         "restarts_delta": r1 - r0 if "" not in (r0, r1) else "",
