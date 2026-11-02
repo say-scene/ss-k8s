@@ -30,3 +30,5 @@ data:
   MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS: "true"
   CONVERSATION_TTL_SECONDS: "86400"
   SESSION_COOKIE_SECURE: "true"
+  # 브라우저 OTLP/JSON은 공개 Collector 대신 BE의 제한된 /api/telemetry/traces를 거친다.
+  BROWSER_TELEMETRY_OTLP_ENDPOINT: "http://alloy-otlp.monitoring.svc.cluster.local:4318/v1/traces"
