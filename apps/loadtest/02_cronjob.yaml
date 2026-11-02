@@ -1,0 +1,82 @@
+# vLLM 부하테스트 실행 틀. suspend: true라 스스로는 돌지 않는다.
+# run.sh가 이 틀에서 Job을 찍어내 실행한다(kubectl create job --from).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vllm-loadtest
+spec:
+  suspend: true
+  # 필수 필드라 넣었다. suspend라 쓰이지 않는다.
+  schedule: "0 0 1 1 *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      # 실패해도 다시 돌리지 않는다. 재시도하면 서빙 중인 vLLM에 부하가 한 번 더 걸린다.
+      backoffLimit: 0
+      # 끝난 Job·Pod는 1시간 뒤 지운다. 결과는 hostPath에 남는다.
+      ttlSecondsAfterFinished: 3600
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          # 결과를 기본(control-plane) 노드의 hostPath에 남긴다. 노드를 교체하면 같이 고친다.
+          nodeSelector:
+            kubernetes.io/hostname: ip-10-0-4-232.ap-northeast-2.compute.internal
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+          containers:
+            - name: bench
+              image: python:3.12.8-slim
+              command: [python, -u, /app/bench.py]
+              env:
+                # 결과 디렉터리 이름으로 쓴다.
+                - name: JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['batch.kubernetes.io/job-name']
+                - name: VLLM_URL
+                  value: http://vllm-qwen.vllm.svc:8000
+                - name: PROM_URL
+                  value: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+                - name: CONCURRENCY
+                  value: "1 2 4 8"
+                # 단계마다 이 건수만큼 요청을 보낸다. p95를 믿을 수 있는 최소 표본이다.
+                - name: MIN_REQUESTS
+                  value: "40"
+                # 입력은 --max-num-batched-tokens 512 아래로 둔다. 실제 토큰 수는 결과에 기록된다.
+                - name: PROMPT_WORDS
+                  value: "200"
+                # ignore_eos로 매번 이 길이만큼 생성시킨다.
+                - name: MAX_TOKENS
+                  value: "128"
+                - name: REQUEST_TIMEOUT
+                  value: "300"
+                - name: WARMUP_REQUESTS
+                  value: "2"
+                - name: POLL_SECONDS
+                  value: "5"
+                - name: COOLDOWN_SECONDS
+                  value: "10"
+                - name: RESULT_DIR
+                  value: /results
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                - name: script
+                  mountPath: /app
+                - name: results
+                  mountPath: /results
+          volumes:
+            - name: script
+              configMap:
+                name: loadtest-script
+            - name: results
+              hostPath:
+                path: /opt/sayscene-loadtest/results
+                type: DirectoryOrCreate
