@@ -21,5 +21,12 @@ data:
   # Redis 연결이 끊기면 BE를 트래픽 대상에서 제외하고, 복구되면 다시 포함한다.
   MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
   MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: "readinessState,redis"
+  # 응답시간을 평균이 아니라 분위수(p95)로 보기 위해 히스토그램 버킷을 켠다.
+  # 원래 설정 이름: management.metrics.distribution.percentiles-histogram.http.server.requests
+  # 끄면 _count 와 _sum 만 나와 평균밖에 못 구한다. 평균은 꼬리를 숨긴다.
+  # 대가는 시계열 증가다. uri 하나당 버킷이 수십 개 늘어난다.
+  # Prometheus 는 retentionSize 1GiB 라 적용 후 TSDB 크기를 확인한다.
+  # 되돌리려면 이 줄을 지우고 Sync 한다. 파드가 다시 뜬다.
+  MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS: "true"
   CONVERSATION_TTL_SECONDS: "86400"
   SESSION_COOKIE_SECURE: "true"
