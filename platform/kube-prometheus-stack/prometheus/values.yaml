@@ -96,7 +96,7 @@ additionalPrometheusRulesMap:
     groups:
       - name: vllm-latency
         rules:
-          - alert: VllmQueueLatency
+          - alert: VllmTtftHigh
             expr: >-
               rate(vllm:time_to_first_token_seconds_sum[5m])
               / rate(vllm:time_to_first_token_seconds_count[5m]) > 1.2
@@ -104,7 +104,8 @@ additionalPrometheusRulesMap:
             labels:
               severity: warning
             annotations:
-              summary: "vLLM 첫 토큰 지연 증가"
+              # 1.2초·2분은 위 expr·for 와 같이 바꾼다.
+              summary: "vLLM 첫 토큰 지연 — 5분 평균이 기준 1.2초를 2분 연속 초과"
               description: |-
                 첫 토큰 {{ $value | humanizeDuration }} (5분 평균 · 평상시 60ms)
                 동시처리슬롯: {{ with query "max(vllm:num_requests_running)" }}{{ . | first | value | printf "%.0f" }}{{ end }}/{{ with query "max(max_over_time(vllm:num_requests_running[1h]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} · 슬롯대기: {{ with query "max(vllm:num_requests_waiting)" }}{{ . | first | value | printf "%.0f" }}{{ end }}건
