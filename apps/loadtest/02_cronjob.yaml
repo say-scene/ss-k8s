@@ -44,10 +44,11 @@ spec:
                   value: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
                 # 측정할 동시 요청 수 단계. 공백으로 구분하고 앞에서부터 차례로 돈다.
                 # 단계마다 이 수만큼 워커가 응답을 받는 즉시 다음 요청을 보낸다.
+                # run.sh가 slot에 맞춰 덮어쓴다(1 slot slot×2 slot×4). 이 값은 Job을 직접 만들 때만 쓰인다.
                 - name: CONCURRENCY
                   value: "1 2 4 8 16"
                 # 단계마다 기록하는 요청 수(워커 전체 합계). 처음 완료되는 N건과 끝날 때 처리 중인 요청은 따로 보내고 버린다.
-                # p95가 위쪽 4건으로 정해지도록 80을 잡았다.
+                # run.sh가 slot×4×10으로 덮어쓴다(최고 단계에서 워커당 10건). 이 값은 Job을 직접 만들 때만 쓰인다.
                 - name: REQUESTS_PER_STEP
                   value: "80"
                 # 입력 본문 단어 수. 같은 단어 8개를 같은 순서로 반복해 모든 요청의 본문이 같다.
