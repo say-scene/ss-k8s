@@ -88,5 +88,5 @@ alertmanager:
               {{- end }}
               {{- end }}
               {{ range .Alerts.Resolved }}
-              🟢 {{ if .Labels.kubernetes_node }}`{{ .Labels.kubernetes_node }}`{{ else if .Labels.node }}`{{ .Labels.node }}`{{ else if .Labels.instance }}`{{ .Labels.instance }}`{{ end }} {{ .EndsAt | tz "Asia/Seoul" | date "15:04:05" }} 해소
+              🟢 {{ if .Labels.kubernetes_node }}`{{ .Labels.kubernetes_node }}`{{ else if .Labels.node }}`{{ .Labels.node }}`{{ else if .Labels.instance }}`{{ .Labels.instance }}`{{ end }}{{ if .Labels.pod }} / `{{ .Labels.pod }}`{{ end }} {{ .EndsAt | tz "Asia/Seoul" | date "15:04:05" }} 해소
               {{- end }}
