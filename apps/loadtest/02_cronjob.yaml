@@ -31,34 +31,45 @@ spec:
               image: python:3.12.8-slim
               command: [python, -u, /app/bench.py]
               env:
-                # 결과 디렉터리 이름으로 쓴다.
+                # 결과 디렉터리 이름과 요청 태그 앞부분으로 쓴다. Job 이름(lt-slot<N>-<시각>)이 들어온다.
                 - name: JOB_NAME
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.labels['batch.kubernetes.io/job-name']
+                # 부하를 보낼 vLLM 주소. /v1/chat/completions·/v1/models·/metrics를 쓴다.
                 - name: VLLM_URL
                   value: http://vllm-qwen.vllm.svc:8000
+                # GPU·VRAM(DCGM), vLLM 파드 CPU·메모리, 재시작 횟수를 단계별로 조회할 Prometheus 주소.
                 - name: PROM_URL
                   value: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+                # 측정할 동시 요청 수 단계. 공백으로 구분하고 앞에서부터 차례로 돈다.
+                # 단계마다 이 수만큼 워커가 응답을 받는 즉시 다음 요청을 보낸다.
                 - name: CONCURRENCY
                   value: "1 2 4 8"
                 # 단계마다 이 건수만큼 요청을 보낸다. p95를 믿을 수 있는 최소 표본이다.
                 - name: MIN_REQUESTS
                   value: "40"
+                # 입력 본문 단어 수. 같은 단어 8개를 같은 순서로 반복해 모든 요청의 본문이 같다.
                 # 입력은 --max-num-batched-tokens 512 아래로 둔다. 실제 토큰 수는 결과에 기록된다.
                 - name: PROMPT_WORDS
                   value: "200"
-                # ignore_eos로 매번 이 길이만큼 생성시킨다.
+                # 요청 1건의 출력 토큰 수. ignore_eos로 매번 이 길이만큼 생성시킨다.
                 - name: MAX_TOKENS
                   value: "128"
+                # 요청 1건을 기다리는 최대 초. 넘으면 timeout으로 기록한다.
+                # 쿨다운에서 대기열이 비기를 기다리는 최대 시간으로도 쓴다.
                 - name: REQUEST_TIMEOUT
                   value: "300"
+                # 측정 전에 보내고 버리는 요청 수. 첫 요청의 초기화 지연을 결과에서 뺀다.
                 - name: WARMUP_REQUESTS
                   value: "2"
+                # vLLM /metrics(실행·대기 요청 수, KV 캐시 사용률, preemption) 수집 간격(초).
                 - name: POLL_SECONDS
                   value: "5"
+                # 단계 사이에 대기열이 빈 것을 확인한 뒤 더 쉬는 초. 앞 단계 지표가 다음 단계에 섞이지 않게 한다.
                 - name: COOLDOWN_SECONDS
                   value: "10"
+                # 컨테이너 안 결과 경로. 아래 hostPath(/opt/sayscene-loadtest/results)에 마운트된다.
                 - name: RESULT_DIR
                   value: /results
               resources:
