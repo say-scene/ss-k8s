@@ -23,7 +23,7 @@ spec:
       labels:
         app: ss-triton
     spec:
-      # platform/karpenter/nodepool-stt.yaml의 전용 노드(t3.large)에 둔다. 라벨·taint를 맞춘다.
+      # platform/karpenter/nodepool-stt.yaml의 전용 노드(t3.xlarge)에 둔다. 라벨·taint를 맞춘다.
       nodeSelector:
         sayscene.io/workload: stt
       tolerations:
@@ -43,10 +43,11 @@ spec:
             # 모델 비교 시 이름(예: large-v3-turbo)으로 바꾸면 기존처럼 HF에서 받는다.
             - name: WHISPER_MODEL
               value: /models/small.en
-            # t3.large(물리 1코어) 실측: threads·concurrency를 (2,1)·(1,1)·(1,2)로 바꿔도
-            # 처리량은 약 0.16 rps로 같고 (1,2)는 p90만 나빠졌다. 가장 단순한 (1,1)로 둔다.
+            # t3.large(물리 1코어)에서는 (2,1)·(1,1)·(1,2) 처리량이 약 0.16 rps로 같았다.
+            # t3.xlarge(물리 2코어)는 요청 1건이 두 코어를 쓰는 (2,1)로 시작한다. (1,2)와 bench 비교 전이다.
+            # concurrency를 2로 바꾸면 03_scaledobject.yaml의 Pod당 용량(threshold)도 맞춘다.
             - name: WHISPER_CPU_THREADS
-              value: "1"
+              value: "2"
             # 동시 계산 수. 물리 코어 수보다 올려도 처리량이 늘지 않는다.
             - name: STT_CONCURRENCY
               value: "1"
@@ -76,17 +77,18 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 6
           # request = limit(Guaranteed)로 측정 중 CPU 몫을 고정한다.
-          # CPU는 t3.large allocatable 1700m에서 DaemonSet 몫을 뺀 값이다. 노드당 STT 1개라 더 낮출 이유가 없다.
+          # CPU는 t3.xlarge allocatable 추정 3700m(4000m - 예약 300m)에서 DaemonSet 몫(t3.large 기준 약 200m)과
+          # 여유 100m를 뺀 값이다(노드에서 미확인). 노드당 STT 1개라 더 낮출 이유가 없다.
           # 메모리는 t3.large 측정 피크 1.19GiB(small.en, 동시 4건) 기준.
           resources:
             requests:
-              cpu: 1500m
+              cpu: 3400m
               memory: 2Gi
             limits:
-              cpu: 1500m
+              cpu: 3400m
               memory: 2Gi
       volumes:
-        # Pod 재시작 시 모델을 다시 받는다. small.en은 수백 MB라 감수한다.
+        # small.en은 이미지의 /models에 있어 쓰지 않는다. WHISPER_MODEL에 이름을 줄 때의 HF 캐시다.
         - name: model-cache
           emptyDir:
             sizeLimit: 4Gi
