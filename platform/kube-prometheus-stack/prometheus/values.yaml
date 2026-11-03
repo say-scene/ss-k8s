@@ -81,3 +81,33 @@ additionalPrometheusRulesMap:
             annotations:
               summary: "노드 루트 디스크 85% 초과"
               description: "{{ $labels.instance }} 의 루트 디스크가 85% 를 넘었다. 기본 노드면 Prometheus 보존을 줄이거나 전용 볼륨으로 옮긴다."
+
+  # vLLM 큐가 쌓이면 첫 토큰까지의 시간이 늘어난다. 평상시 60ms, 부하 시 20초.
+  # 응답시간이 아니라 TTFT 를 본다. 대화를 통째로 요약하는 ss-be 의
+  # /api/v1/report 는 설계상 20초가 걸려 응답시간에 섞인다.
+  #
+  # 발동: 5분 평균 TTFT 가 1.2초를 2분 연속 넘으면 firing.
+  # 알림: firing -> Alertmanager -> Discord. 부하 시작 후 약 4분 30초 뒤 도착한다.
+  #       (5분 창 2분 + for 2분 + group_wait 30초)
+  #       시험 한 번에 2통(발화·해소). 지속되어도 4시간 전에는 재전송하지 않는다.
+  #
+  # 메시지의 슬롯 분모는 최근 1시간 관측 최대값이다. --max-num-seqs 설정값이 아니다.
+  vllm-latency:
+    groups:
+      - name: vllm-latency
+        rules:
+          - alert: VllmQueueLatency
+            expr: >-
+              rate(vllm:time_to_first_token_seconds_sum[5m])
+              / rate(vllm:time_to_first_token_seconds_count[5m]) > 1.2
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "vLLM 첫 토큰 지연 증가"
+              description: |-
+                첫 토큰 {{ $value | humanizeDuration }} (5분 평균 · 평상시 60ms)
+                동시처리슬롯: {{ with query "max(vllm:num_requests_running)" }}{{ . | first | value | printf "%.0f" }}{{ end }}/{{ with query "max(max_over_time(vllm:num_requests_running[1h]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} · 슬롯대기: {{ with query "max(vllm:num_requests_waiting)" }}{{ . | first | value | printf "%.0f" }}{{ end }}건
+                GPU {{ with query "DCGM_FI_DEV_GPU_UTIL" }}{{ . | first | label "hostname" }}{{ end }} : 생성 {{ with query "sum(rate(vllm:generation_tokens_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} tok/s · 입력 {{ with query "sum(rate(vllm:prompt_tokens_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} tok/s
+                KV 캐시 {{ with query "max(vllm:kv_cache_usage_perc)" }}{{ . | first | value | humanizePercentage }}{{ end }} · 선점 {{ with query "sum(increase(vllm:num_preemptions_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }}회 (KV 부족으로 요청을 되돌린 횟수)
+                대기 0 이면 vLLM 밖의 원인
