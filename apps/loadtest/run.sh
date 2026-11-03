@@ -36,10 +36,19 @@ if [ -n "$active" ]; then
   exit 1
 fi
 
+# 단계: 1(기준) → slot(배치 꽉 참) → slot×2 → slot×4(대기열). slot 1이면 1이 겹쳐 뺀다.
+# 단계당 건수는 모든 단계 같다. 최고 단계에서도 워커당 10건이 되게 slot×4×10.
+if [ "$slots" -eq 1 ]; then
+  concurrency="1 2 4"
+else
+  concurrency="1 $slots $((slots * 2)) $((slots * 4))"
+fi
+requests=$((slots * 4 * 10))
+
 job="lt-slot${slots}-$(date +%Y%m%d-%H%M%S)"
-echo "Job $job 생성 (max-num-seqs=$slots)"
+echo "Job $job 생성 (max-num-seqs=$slots, 동시 요청 $concurrency, 단계당 ${requests}건)"
 kubectl -n "$NS" create job "$job" --from=cronjob/vllm-loadtest --dry-run=client -o yaml \
-  | kubectl set env --local -f - "MAX_NUM_SEQS=$slots" -o yaml \
+  | kubectl set env --local -f - "MAX_NUM_SEQS=$slots" "CONCURRENCY=$concurrency" "REQUESTS_PER_STEP=$requests" -o yaml \
   | kubectl create -f -
 
 # logs -f는 오래 붙어 있으면 출력이 끝날 때까지 몰려 나온 적이 있다. 30초마다 마지막 줄만 보고 끝나면 전체를 출력한다.
