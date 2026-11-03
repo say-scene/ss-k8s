@@ -31,14 +31,14 @@ spec:
         - key: node.kubernetes.io/instance-type
           operator: In
           # c7i.large는 general AMI에서 Pod DNS가 실패해 보류했다(NIC 이름 문제로 추정, 미확인).
-          values: ["t3.large"]
+          values: ["t3.xlarge"]
         - key: karpenter.sh/capacity-type
           operator: In
           values: ["on-demand"]
-  # 노드 최대 2대 = ScaledObject maxReplicaCount 2(t3.large 1대당 cpu 2, 8Gi). KEDA 테스트용 상한이다.
+  # 노드 최대 2대 = ScaledObject maxReplicaCount 2(t3.xlarge 1대당 cpu 4, 16Gi). KEDA 테스트용 상한이다.
   limits:
-    cpu: "4"
-    memory: 16Gi
+    cpu: "8"
+    memory: 32Gi
   disruption:
     consolidationPolicy: WhenEmpty
     consolidateAfter: 1m
