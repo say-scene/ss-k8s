@@ -7,7 +7,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: ss-triton
-  # 노드(t3.xlarge) 1대에 1개씩 뜬다. 최대값을 바꾸면 platform/karpenter/nodepool-stt.yaml의 limits도 맞춘다.
+  # 노드(t3.large) 1대에 1개씩 뜬다. 최대값을 바꾸면 platform/karpenter/nodepool-stt.yaml의 limits도 맞춘다.
   # 지금은 KEDA 동작 테스트용으로 최대 2다.
   minReplicaCount: 1
   maxReplicaCount: 2
