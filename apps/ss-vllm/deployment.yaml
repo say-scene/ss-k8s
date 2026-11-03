@@ -72,7 +72,7 @@ spec:
             - --max-model-len
             - "4096"
             - --max-num-seqs
-            - "1" # 슬롯 수
+            - "2" # 슬롯 수
             - --max-num-batched-tokens
             - "512"
             - --enable-chunked-prefill
