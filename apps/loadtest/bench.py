@@ -10,7 +10,7 @@ E = os.environ
 VLLM_URL = E.get("VLLM_URL", "http://vllm-qwen.vllm.svc:8000").rstrip("/")
 PROM_URL = E.get("PROM_URL", "http://kube-prometheus-stack-prometheus.monitoring.svc:9090").rstrip("/")
 CONCURRENCY = [int(x) for x in E.get("CONCURRENCY", "1 2 4 8").split()]
-MIN_REQUESTS = int(E.get("MIN_REQUESTS", "40"))
+REQUESTS_PER_STEP = int(E.get("REQUESTS_PER_STEP", "40"))
 PROMPT_WORDS = int(E.get("PROMPT_WORDS", "200"))
 MAX_TOKENS = int(E.get("MAX_TOKENS", "128"))
 REQUEST_TIMEOUT = float(E.get("REQUEST_TIMEOUT", "300"))
@@ -152,36 +152,48 @@ def one_request(model, conc, tag):
         row["status"] = "timeout"
     except (OSError, http.client.HTTPException):
         row["status"] = "connection_error"
-    except ValueError:
+    # 예외가 워커 스레드를 죽이면 단계가 끝나지 않는다. 응답 형식 문제는 모두 여기로 모은다.
+    except Exception:
         row["status"] = "bad_response"
     finally:
         conn.close()
     return row
 
 
-def run_step(model, conc, rows):
-    issued, lock = [0], threading.Lock()
+def run_step(model, conc, rows, warm, done):
+    """동시성 N이 유지된 구간의 요청만 REQUESTS_PER_STEP건 기록한다.
+
+    처음 완료되는 N건은 대기열이 차기 전에 출발한 요청이라 버리고 warm을 세운다.
+    REQUESTS_PER_STEP건을 기록하면 done을 세운다. 그때 처리 중인 요청은 동시성이 줄어드는 중에 끝나므로 버린다.
+    반환한 스레드는 버리는 요청까지 끝나면 종료된다.
+    """
+    issued, completed, lock = [0], [0], threading.Lock()
 
     def worker():
-        while True:
+        while not done.is_set():
             with lock:
-                if issued[0] >= MIN_REQUESTS:
-                    return
                 issued[0] += 1
                 n = issued[0]
-            # ponytail: 마지막 몇 건은 동시성이 N보다 낮아진다. 표본이 작으면 MIN_REQUESTS를 늘린다.
             r = one_request(model, conc, f"{RUN}-c{conc}-{n}")
             with lock:
+                if done.is_set():
+                    return
+                completed[0] += 1
+                if completed[0] <= conc:
+                    if completed[0] == conc:
+                        warm.set()
+                    continue
                 rows.append(r)
                 if len(rows) % 10 == 0:
-                    print(f"동시성 {conc}: {len(rows)}/{MIN_REQUESTS} 완료")
+                    print(f"동시성 {conc}: {len(rows)}/{REQUESTS_PER_STEP} 완료")
+                if len(rows) >= REQUESTS_PER_STEP:
+                    done.set()
 
     print(f"동시성 {conc} 시작")
     threads = [threading.Thread(target=worker) for _ in range(conc)]
     for t in threads:
         t.start()
-    for t in threads:
-        t.join()
+    return threads
 
 
 class Poller(threading.Thread):
@@ -273,7 +285,7 @@ def main():
         "cache_config": cache,
         "missing_metrics": [k for k, names in {**GAUGES, **HISTS}.items()
                             if pick(parse_metrics(text), names, "" if k in GAUGES else "_count") is None],
-        "settings": {k: E.get(k) for k in ("CONCURRENCY", "MIN_REQUESTS", "PROMPT_WORDS", "MAX_TOKENS",
+        "settings": {k: E.get(k) for k in ("CONCURRENCY", "REQUESTS_PER_STEP", "PROMPT_WORDS", "MAX_TOKENS",
                                            "REQUEST_TIMEOUT", "WARMUP_REQUESTS", "POLL_SECONDS", "COOLDOWN_SECONDS")},
         "steps": [],
     }
@@ -288,13 +300,20 @@ def main():
     poller.start()
     for conc in CONCURRENCY:
         wait_idle()
-        before, r0, start = vllm_metrics(), restarts(time.time()), time.time()
+        step_rows, warm, done = [], threading.Event(), threading.Event()
+        threads = run_step(meta["model"], conc, step_rows, warm, done)
+        # 측정 구간은 처음 N건이 끝난 뒤부터다. 처리량·서버 측 평균·자원 지표 모두 이 구간으로 잡는다.
+        warm.wait()
+        start = time.time()
+        before, r0 = vllm_metrics(), restarts(start)
         poller.step = conc
-        step_rows = []
-        run_step(meta["model"], conc, step_rows)
+        done.wait()
+        # 버리는 요청이 끝나기 전에 단계 종료 지표를 찍는다. 그래야 서버 측 평균에도 섞이지 않는다.
         end = time.time()
         poller.step = ""
         after, r1 = vllm_metrics(), restarts(end)
+        for t in threads:
+            t.join()
         rows += step_rows
         polls = [p for p in poller.rows if p["concurrency"] == conc]
         summary.append(summarize(conc, step_rows, polls, before, after, start, end, resources(start, end), r0, r1))
