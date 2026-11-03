@@ -58,7 +58,18 @@ alertmanager:
           matchers:
             - alertname = "Watchdog"
 
-        # matchers 가 없어 Watchdog 을 뺀 나머지 전부가 이 경로로 온다.
+        # vLLM 은 파드까지 묶음 기준에 넣는다. 파드를 바꾸면 옛 파드 알람이 해소되고
+        # 새 파드 알람이 몇 분 뒤 발화하는데, 라벨이 달라 별개 알람이라 한 통에
+        # 🟢 와 🔴 가 같이 담긴다. Prometheus 가 해소를 15분간 계속 보내기 때문이고
+        # 그 15분은 소스 상수라 바꿀 수 없다.
+        # 잃는 것은 없다. replicas 1 + Recreate 라 두 파드가 동시에 발화할 수 없다.
+        - receiver: discord
+          matchers:
+            - namespace = "vllm"
+          group_by: [alertname, namespace, pod]
+          active_time_intervals: [business-hours]
+
+        # matchers 가 없어 Watchdog 과 vllm 을 뺀 나머지 전부가 이 경로로 온다.
         # 그래서 위 route.receiver: discord 는 실제로 쓰이지 않는다.
         # 시간 조건을 루트에 걸지 않는 이유: 자식 경로가 상속하는지 확인하지 못했다.
         - receiver: discord
