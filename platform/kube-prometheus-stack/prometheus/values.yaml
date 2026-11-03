@@ -91,7 +91,8 @@ additionalPrometheusRulesMap:
   #       (5분 창 2분 + for 2분 + group_wait 30초)
   #       시험 한 번에 2통(발화·해소). 지속되어도 4시간 전에는 재전송하지 않는다.
   #
-  # 메시지의 슬롯 분모는 최근 1시간 관측 최대값이다. --max-num-seqs 설정값이 아니다.
+  # 메시지의 값은 모두 최근 5분 기준이다. 알림이 4분 30초 늦게 오므로 순간값을
+  # 쓰면 부하가 끝난 뒤의 0 을 보여준다. 슬롯 분모만 설정값 추정용이라 1시간이다.
   vllm-latency:
     groups:
       - name: vllm-latency
@@ -108,7 +109,7 @@ additionalPrometheusRulesMap:
               summary: "vLLM 첫 토큰 지연 — 5분 평균이 기준 1.2초를 2분 연속 초과"
               description: |-
                 첫 토큰 {{ $value | humanizeDuration }} (5분 평균 · 평상시 60ms)
-                동시처리슬롯: {{ with query "max(vllm:num_requests_running)" }}{{ . | first | value | printf "%.0f" }}{{ end }}/{{ with query "max(max_over_time(vllm:num_requests_running[1h]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} · 슬롯대기: {{ with query "max(vllm:num_requests_waiting)" }}{{ . | first | value | printf "%.0f" }}{{ end }}건
-                GPU {{ with query "DCGM_FI_DEV_GPU_UTIL" }}{{ . | first | label "hostname" }}{{ end }} : 생성 {{ with query "sum(rate(vllm:generation_tokens_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} tok/s · 입력 {{ with query "sum(rate(vllm:prompt_tokens_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} tok/s
-                KV 캐시 {{ with query "max(vllm:kv_cache_usage_perc)" }}{{ . | first | value | humanizePercentage }}{{ end }} · 선점 {{ with query "sum(increase(vllm:num_preemptions_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }}회 (KV 부족으로 요청을 되돌린 횟수)
+                동시처리슬롯: 최대 {{ with query "max(max_over_time(vllm:num_requests_running[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }}/{{ with query "max(max_over_time(vllm:num_requests_running[1h]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} · 슬롯대기: 최대 {{ with query "max(max_over_time(vllm:num_requests_waiting[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }}건
+                GPU {{ with query "DCGM_FI_DEV_GPU_UTIL" }}{{ . | first | label "hostname" }}{{ end }} : 생성 평균 {{ with query "sum(rate(vllm:generation_tokens_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} tok/s · 입력 평균 {{ with query "sum(rate(vllm:prompt_tokens_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }} tok/s
+                KV 캐시 최대 {{ with query "max(max_over_time(vllm:kv_cache_usage_perc[5m]))" }}{{ . | first | value | humanizePercentage }}{{ end }} · 선점 {{ with query "sum(increase(vllm:num_preemptions_total[5m]))" }}{{ . | first | value | printf "%.0f" }}{{ end }}회 (KV 부족으로 요청을 되돌린 횟수)
                 대기 0 이면 vLLM 밖의 원인

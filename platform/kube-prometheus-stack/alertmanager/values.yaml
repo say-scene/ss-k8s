@@ -72,18 +72,21 @@ alertmanager:
             send_resolved: true
             # message 는 |- 를 쓴다. >- 는 줄바꿈을 공백으로 접어 한 줄로 뭉친다.
             # 노드 라벨 이름은 차트 relabeling 에 따라 달라서 3단 폴백을 둔다.
+            # 시각은 tz 로 KST 로 바꾼다. 컨테이너 시간대가 UTC 라 그대로 쓰면 9시간 어긋난다.
+            # StartsAt 은 for 를 채워 firing 이 된 시각이다. 조건이 처음 참이 된 시각이 아니다.
+            # 밤에 발화해 아침에 도착한 알림에서 실제 발생 시각을 알려준다.
             # instance 는 node-exporter 지표에 항상 붙으므로 최소한 IP 는 나온다.
             title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}'
             message: |-
               {{ if .CommonLabels.severity }}**{{ .CommonLabels.severity | toUpper }}**{{ end }}{{ if .CommonLabels.namespace }} · `{{ .CommonLabels.namespace }}`{{ end }}
               {{ if .CommonAnnotations.summary }}{{ .CommonAnnotations.summary }}{{ end }}
               {{ range .Alerts.Firing }}
-              🔴 {{ if .Labels.kubernetes_node }}`{{ .Labels.kubernetes_node }}`{{ else if .Labels.node }}`{{ .Labels.node }}`{{ else if .Labels.instance }}`{{ .Labels.instance }}`{{ end }}{{ if .Labels.pod }} / `{{ .Labels.pod }}`{{ end }}
+              🔴 {{ if .Labels.kubernetes_node }}`{{ .Labels.kubernetes_node }}`{{ else if .Labels.node }}`{{ .Labels.node }}`{{ else if .Labels.instance }}`{{ .Labels.instance }}`{{ end }}{{ if .Labels.pod }} / `{{ .Labels.pod }}`{{ end }} · {{ .StartsAt | tz "Asia/Seoul" | date "15:04:05" }} 발화
               {{ .Annotations.description }}
               {{- if .Annotations.runbook_url }}
               → {{ .Annotations.runbook_url }}
               {{- end }}
               {{- end }}
               {{ range .Alerts.Resolved }}
-              🟢 {{ if .Labels.kubernetes_node }}`{{ .Labels.kubernetes_node }}`{{ else if .Labels.node }}`{{ .Labels.node }}`{{ else if .Labels.instance }}`{{ .Labels.instance }}`{{ end }} 해소
+              🟢 {{ if .Labels.kubernetes_node }}`{{ .Labels.kubernetes_node }}`{{ else if .Labels.node }}`{{ .Labels.node }}`{{ else if .Labels.instance }}`{{ .Labels.instance }}`{{ end }} {{ .EndsAt | tz "Asia/Seoul" | date "15:04:05" }} 해소
               {{- end }}
