@@ -35,13 +35,10 @@ if [ -n "$active" ]; then
   exit 1
 fi
 
-# 단계: 1(기준) → slot(배치 꽉 참) → slot×2 → slot×4(대기열). slot 1이면 1이 겹쳐 뺀다.
+# 단계: slot(배치 꽉 참) → slot×2 → slot×4(대기열).
+# 동시 요청 1은 slot과 무관하고(slot 1·2·4·8에서 같은 값) 단계당 건수가 커지면 너무 오래 걸려 뺐다.
 # 단계당 건수는 모든 단계 같다. 최고 단계에서도 워커당 10건이 되게 slot×4×10.
-if [ "$slots" -eq 1 ]; then
-  concurrency="1 2 4"
-else
-  concurrency="1 $slots $((slots * 2)) $((slots * 4))"
-fi
+concurrency="$slots $((slots * 2)) $((slots * 4))"
 requests=$((slots * 4 * 10))
 
 job="lt-slot${slots}-$(date +%Y%m%d-%H%M%S)"
