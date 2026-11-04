@@ -38,7 +38,7 @@ Grafana → 대시보드 → Export ▾ → Export as code
 받은 파일을 그대로 덮어쓰지 않는다. `id`·`version`·에디터 찌꺼기를 빼고 키를 정렬해야 diff 에 바뀐 패널만 보인다.
 
 ```sh
-python3 clean-dashboard.py ~/Downloads/<받은파일>.json ss-service.json
+python3 -c "import json,sys;d=json.load(open(sys.argv[1],encoding='utf-8'));d.pop('id',0);d.pop('version',0);[t.pop('key',0) for p in d['panels'] for t in p.get('targets',[])];f=open(sys.argv[2],'w',encoding='utf-8');json.dump(d,f,ensure_ascii=False,indent=2,sort_keys=True);f.write('\n')" ~/Downloads/<받은파일>.json ss-service.json
 ```
 
 ## 알려진 문제
